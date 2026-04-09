@@ -3,9 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
-
 import hljs from "highlight.js";
-
 import "highlight.js/styles/github-dark.css";
 
 export default function MarkdownRenderer({ content }: { content: string }) {
@@ -15,20 +13,28 @@ export default function MarkdownRenderer({ content }: { content: string }) {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={{
-          code({ node, inline, className, children, ...props }) {
+          // Removed 'inline' from the destructured props
+          code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
-            return !inline && match ? (
+
+            // If it's a code block with a language (match exists), render with Highlight.js
+            return match ? (
               <pre className="rounded-lg">
                 <code
+                  {...props}
                   dangerouslySetInnerHTML={{
-                    __html: hljs.highlight(children.toString(), {
-                      language: match[1],
-                    }).value,
+                    __html: hljs.highlight(
+                      String(children).replace(/\n$/, ""),
+                      {
+                        language: match[1],
+                      },
+                    ).value,
                   }}
                 />
               </pre>
             ) : (
-              <code className="bg-foreground/10 px-1 py-0.5 rounded">
+              // Otherwise, render as standard inline code
+              <code className="bg-foreground/10 px-1 py-0.5 rounded" {...props}>
                 {children}
               </code>
             );

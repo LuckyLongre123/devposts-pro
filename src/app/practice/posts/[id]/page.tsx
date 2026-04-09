@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import PostDisplay from "../../../dashboard/posts/PostDisplay";
+import PostDisplay from "@/app/posts/[id]/PostDisplay";
 
 export const revalidate = 60;
 export default async function ProductDetail({

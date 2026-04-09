@@ -24,7 +24,8 @@ export default async function PostDetail({
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const data = await getSinglePost(id);
-
+    
+    // @ts-ignore or cast
     postData = data.data;
   } catch (error: any) {
     console.log("PostDetail Error:", error.message);

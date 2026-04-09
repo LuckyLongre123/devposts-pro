@@ -33,6 +33,7 @@ export default async function DashboardPage({
     // ✅ Direct DB call (NO API)
     const data = await getPosts(userId, currentPage, limit);
 
+    // @ts-ignore or cast
     posts = data.posts;
     totalPages = data.totalPages;
   } catch (error) {

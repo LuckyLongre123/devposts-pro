@@ -23,14 +23,22 @@ const errorRes = (
   return NextResponse.json({ error, details, code, retryable }, { status });
 };
 
-const validate = (body: any) => {
+const validate = (
+  body: any,
+):
+  | { ok: true; data: { prompt: string; field: any } }
+  | { ok: false; msg: string } => {
   if (!body || typeof body !== "object")
     return { ok: false, msg: "Body must be a JSON object." };
+
   const { prompt, field } = body;
+
   if (!prompt || typeof prompt !== "string" || !prompt.trim())
     return { ok: false, msg: "Prompt is required." };
+
   if (field && field !== "title" && field !== "body")
     return { ok: false, msg: 'Field must be "title" or "body".' };
+
   return { ok: true, data: { prompt: prompt.trim(), field } };
 };
 
@@ -109,14 +117,15 @@ export async function POST(req: Request) {
   }
 
   const v = validate(body);
-  if (!v.ok)
+  if (!v.ok) {
     return errorRes(
       "Validation Failed",
-      v.msg!,
+      v.msg,
       ERROR_CODES.INVALID_INPUT,
       false,
       400,
     );
+  }
 
   const { prompt, field } = v.data;
 
