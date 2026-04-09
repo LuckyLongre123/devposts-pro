@@ -7,7 +7,7 @@ interface FeatureCardProps {
 export default function FeatureCard({
   title,
   description,
-  icon = "📁",
+  icon = "",
 }: FeatureCardProps) {
   return (
     <div className="group flex flex-col rounded-2xl border border-foreground/5 bg-foreground/2 p-8 transition-colors hover:border-blue-500/30 hover:bg-foreground/4">

@@ -1,43 +1,65 @@
 "use client";
-import { useState } from "react"; // 1. Import useState
+
+import { useState } from "react";
 import { contactSchema } from "@/utils/zod/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { ContactType } from "@/types";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function ContactPage() {
-  const [isSuccess, setIsSuccess] = useState(false); // 2. Track success state
+  const user = useAuthStore((st) => st.user);
+
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const {
     register,
     handleSubmit,
-    reset, // 3. Import reset
+    reset,
     formState: { errors, isValid, isSubmitting },
   } = useForm({
     resolver: zodResolver(contactSchema),
     mode: "onChange",
+    defaultValues: {
+      name: user?.name || "",
+      email: user?.email || "",
+    },
   });
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: ContactType) {
     const toastId = toast.loading("Sending your message...");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
       console.log("Form Data:", data);
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        body: JSON.stringify({ ...data, email: data.email.toLowerCase() }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const resData = await res.json();
 
-      toast.success("Message sent 🎉", { id: toastId });
+      if (!res.ok || !resData.success)
+        return toast.error(resData.message || "failed to send message");
 
-      setIsSuccess(true); // 4. Show success UI
-      reset(); // 5. Clear the form inputs
+      toast.success(resData?.message || "User register successfully 🎉", {
+        id: toastId,
+      });
+
+      setIsSuccess(true);
+      reset();
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong ❌", { id: toastId });
+      console.log(error);
+
+      toast.error("Something went wrong ❌", { id: toastId });
     }
   }
 
-  // 6. Conditional Success View
   if (isSuccess) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-10 text-center">
+      <main className="mx-auto min-h-screen max-w-2xl px-6 py-10 text-center">
         <h1 className="mt-6 text-3xl font-bold">Message Received!</h1>
         <p className="mt-4 text-foreground/60">
           Thanks for reaching out. I've received your message and will get back
@@ -54,7 +76,7 @@ export default function ContactPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto min-h-screen max-w-2xl px-6 py-10">
       <h1 className="text-4xl font-bold tracking-tight text-foreground">
         Get in touch
       </h1>

@@ -6,11 +6,13 @@ import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpSchema } from "@/utils/zod/schemas";
+import { SignUpType } from "@/types";
 
 export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isValid, isSubmitting },
   } = useForm({
     resolver: zodResolver(signUpSchema),
@@ -18,15 +20,25 @@ export default function SignupPage() {
   });
   const router = useRouter();
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: SignUpType) {
     const toastId = toast.loading("Creating your account...");
 
     try {
-      // 1. Create a "Wait" promise so isSubmitting stays TRUE
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // 2. This is where your real API call will go
       console.log("Form Data:", data);
+
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ ...data, email: data.email.toLowerCase() }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const resData = await res.json();
+
+      if (!res.ok || !resData.success) {
+        reset();
+        return toast.error(resData.message || "failed to register user!");
+      }
 
       toast.success("Account created! Please sign in. 🎉", { id: toastId });
       router.push("/signin");
@@ -35,7 +47,7 @@ export default function SignupPage() {
     }
   }
   return (
-    <div className="flex py-5 items-center justify-center bg-background px-6">
+    <div className="flex py-2 min-h-screen items-center justify-center bg-background px-6">
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-foreground/10 p-8 shadow-xl">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Create an account</h1>

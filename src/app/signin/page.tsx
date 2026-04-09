@@ -3,9 +3,11 @@ import { useForm } from "react-hook-form";
 import Link from "next/link";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { signInSchema } from "@/utils/zod/schemas";
+import { useAuthStore } from "@/store/useAuthStore";
+import { SignInType } from "@/types";
 
 export default function LoginPage() {
   const {
@@ -17,30 +19,26 @@ export default function LoginPage() {
     mode: "onChange",
   });
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/profile"; // ✅ redirect param
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: SignInType) {
     const toastId = toast.loading("Verifying credentials...");
-
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/signin", {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" },
       });
 
       const result = await res.json();
-
-      if (!res.ok) {
+      if (!res.ok)
         throw new Error(result.message || "Invalid email or password");
-      }
 
-      // 1. Update Zustand store (if you have one)
-      // useAuthStore.getState().setUser(result.user);
-
+      useAuthStore.getState().setUser(result.data.user);
       toast.success("Welcome back! 🎉", { id: toastId });
 
-      // 2. Redirect to dashboard/posts
-      router.push("/posts");
+      router.push(redirect); // ✅ login ke baad usi post pe jayega
       router.refresh();
     } catch (error: any) {
       toast.error(error.message || "Something went wrong ❌", { id: toastId });
@@ -48,7 +46,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex py-10 items-center justify-center bg-background px-6">
+    <div className="flex py-2 min-h-screen items-center justify-center bg-background px-6">
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-foreground/10 p-8 shadow-xl">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Welcome Back</h1>

@@ -95,3 +95,32 @@ export const contactSchema = z.object({
     .min(10, "message must be at least 10 characters")
     .max(500, "message can't be more than 500 characters"),
 });
+
+export const profileSchema = z.object({
+  name: z
+    .string({
+      error: (iss) =>
+        iss.input === undefined ? "name is required" : "name must be a string",
+    })
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name must be less than 50 characters")
+    .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces"),
+});
+
+export const postSchema = z.object({
+  title: z
+    .string({
+      error: (iss) =>
+        iss.input === undefined
+          ? "title is required"
+          : "title must be a string",
+    })
+    .min(3, "Title must be at least 3 characters")
+    .max(200, "Title too long"),
+  body: z
+    .string({
+      error: (iss) =>
+        iss.input === undefined ? "body is required" : "body must be a string",
+    })
+    .min(10, "Content must be at least 10 characters"),
+});

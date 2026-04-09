@@ -8,11 +8,22 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "dependencies": {
+    "@faker-js/faker": "^10.4.0",
+    "@google/genai": "^1.48.0",
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.3.1",
+    "highlight.js": "^11.11.1",
+    "jose": "^6.2.2",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.7.0",
     "next": "16.2.1",
     "nextjs-toploader": "^3.9.17",
     "pg": "^8.20.0",
@@ -20,11 +31,17 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.72.0",
     "react-hot-toast": "^2.6.0",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "use-debounce": "^10.1.1",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",

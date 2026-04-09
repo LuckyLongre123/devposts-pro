@@ -8,6 +8,7 @@ export default function ToastHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const error = searchParams.get("error");
+  const created = searchParams.get("created");
 
   useEffect(() => {
     if (error === "fetch_failed") {
@@ -18,7 +19,15 @@ export default function ToastHandler() {
       params.delete("error");
       router.replace(`/posts?${params.toString()}`, { scroll: false });
     }
-  }, [error, searchParams, router]);
+    if (created === "true") {
+      toast.success("Post created successfully.");
+
+      // Clean the URL so the toast doesn't show again if they refresh
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("created");
+      router.replace(`/posts?${params.toString()}`, { scroll: false });
+    }
+  }, [created, error, searchParams, router]);
 
   return null; // This component doesn't render anything UI-wise
 }

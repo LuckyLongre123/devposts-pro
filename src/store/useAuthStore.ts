@@ -1,15 +1,39 @@
+// store/useAuthStore.ts
+import { UserType } from "@/types";
 import { create } from "zustand";
 
 interface AuthState {
-  user: any | null;
+  user: UserType | null;
   isAuthenticated: boolean;
-  setUser: (user: any) => void;
+  isLoading: boolean;
+  setUser: (user: UserType | null) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   isAuthenticated: false,
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
-  logout: () => set({ user: null, isAuthenticated: false }),
+  isLoading: true,
+  setUser: (user) => {
+    set({ user: user, isAuthenticated: !!user, isLoading: false });
+  },
+  logout: async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to clear session on server");
+      }
+
+      set({ user: null, isAuthenticated: false, isLoading: false });
+
+      window.location.href = "/signin";
+    } catch (error) {
+      console.error("Logout Error:", error);
+    } finally {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+    }
+  },
 }));

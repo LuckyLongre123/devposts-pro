@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 export const revalidate = 60;
+
 export default function AboutPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-20">
@@ -10,9 +11,9 @@ export default function AboutPage() {
           Our Mission<span className="text-blue-500">.</span>
         </h1>
         <p className="mt-6 text-xl text-foreground/60 leading-relaxed">
-          At DEVNOTES.PRO, we believe that great code starts with great
-          organization. We built this platform to help developers bridge the gap
-          between chaotic ideas and structured documentation.
+          At DEVNOTES.PRO, we believe that every great conversation starts with a single thought. 
+          We built this platform to give your ideas a place to live, breathe, and be shared 
+          with the world, free from the noise of traditional social feeds.
         </p>
       </header>
 
@@ -25,10 +26,11 @@ export default function AboutPage() {
               Why DevNotes?
             </h2>
             <p className="mt-4">
-              The web moves fast. Between new frameworks and constant updates,
-              keeping track of what you've learned is a full-time job. We
-              provide a lightning-fast, markdown-first interface to store your
-              snippets, project logic, and tutorials in one place.
+              The internet is crowded. Between algorithm-driven feeds and endless scrolling, 
+              finding a space for genuine expression is harder than ever. We provide a 
+              beautiful, distraction-free platform focused entirely on what matters most: 
+              your writing. Whether it's a fleeting thought or a deeply researched article, 
+              this is your space to publish.
             </p>
           </div>
           <div className="rounded-2xl bg-foreground/3 p-8 border border-foreground/5">
@@ -36,8 +38,8 @@ export default function AboutPage() {
               The Vision
             </h3>
             <p className="mt-4 text-base">
-              To become the default second-brain for developers, built with
-              performance and privacy as core pillars.
+              To become the ultimate home for independent thinkers and creators—built 
+              to amplify your voice with simplicity, speed, and elegance.
             </p>
           </div>
         </section>
@@ -48,8 +50,8 @@ export default function AboutPage() {
             Built for the Future
           </h2>
           <p className="mt-4">
-            We don't just build for today. This platform is an experiment in
-            modern web engineering, utilizing:
+            A seamless writing experience requires a lightning-fast foundation. 
+            This platform is engineered using a modern web stack:
           </p>
           <ul className="mt-6 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             {[
@@ -74,16 +76,16 @@ export default function AboutPage() {
         {/* Section 3: Join Us */}
         <section className="rounded-3xl bg-blue-500 p-10 text-center text-white">
           <h2 className="text-3xl font-bold italic">
-            Start your journey today.
+            Start sharing your story today.
           </h2>
           <p className="mx-auto mt-4 max-w-lg opacity-90">
-            Join thousands of developers who are organizing their workflow and
-            scaling their knowledge with DevNotes Pro.
+            Join a growing community of writers and thinkers who are connecting 
+            through ideas and shaping the conversation.
           </p>
           <div className="mt-8">
             <Link
               href="/signup"
-              className="inline-block rounded-full bg-white px-8 py-3 font-bold text-blue-600 transition-transform hover:scale-105 active:scale-95"
+              className="inline-block rounded-full bg-white px-8 py-3 font-bold text-blue-600 transition-transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >
               Create Free Account
             </Link>

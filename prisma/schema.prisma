@@ -12,15 +12,27 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  user
+  admin
+}
+
 // 1. User Model
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  posts     Post[] // Relation: A user can have many posts
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String
+  name     String?
+  role     Role    @default(user)
+  posts    Post[]
+
+  aiTokens   Int       @default(5)
+  lastAiCall DateTime? @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([email])
 }
 
 // 2. Post Model
@@ -29,8 +41,22 @@ model Post {
   title     String
   body      String
   published Boolean  @default(false)
-  authorId  String // Foreign Key
+  authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+// 3. Message Model 
+model Message {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
