@@ -9,18 +9,20 @@ export default function SignInModal({
   onClose,
 }: {
   postId: string;
-  onClose: () => void;
+  onClose?: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-sm rounded-2xl border border-foreground/10 bg-background p-8 shadow-2xl mx-4">
         {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 text-foreground/40 hover:text-foreground/70 transition-colors"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 text-foreground/40 hover:text-foreground/70 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
 
         {/* Icon */}
         <div className="flex justify-center mb-4">

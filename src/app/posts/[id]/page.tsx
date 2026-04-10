@@ -7,6 +7,7 @@ import { generateArticleMetadata } from "@/lib/seo-config";
 import { generatePostExcerpt } from "@/lib/og-generator";
 import { DEFAULT_THUMBNAIL } from "@/constants/thumbnails";
 import { getAuthenticatedUser } from "@/lib/auth";
+import SignInModal from "../../../../components/SignInModal";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,8 @@ export default async function PostDetail({
   if (hasError || !postData) {
     redirect("/posts?error=failed_fetch");
   }
+
+  if (!user) return <SignInModal postId={postData.id} />;
 
   return <PostDisplay initialPost={postData} />;
 }
