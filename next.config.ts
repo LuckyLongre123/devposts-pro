@@ -102,8 +102,6 @@ const nextConfig: NextConfig = {
 
   // Production source maps for monitoring (optional)
   productionBrowserSourceMaps: false,
-
-  allowedDevOrigins: ["baggage-plank-litter.ngrok-free.dev"],
 };
 
 export default nextConfig;
