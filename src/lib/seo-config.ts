@@ -48,6 +48,7 @@ export function generateRootMetadata(): Metadata {
   const url = SEO_CONFIG.baseUrl;
 
   return {
+    // Basic metadata
     title: {
       default: SEO_CONFIG.title,
       template: `%s | ${APP_NAME}`,
@@ -58,9 +59,13 @@ export function generateRootMetadata(): Metadata {
     creator: SEO_CONFIG.author,
     publisher: APP_NAME,
     metadataBase: new URL(SEO_CONFIG.baseUrl),
+
+    // Canonical and alternates
     alternates: {
       canonical: url,
     },
+
+    // Robots and SEO directives
     robots: {
       index: true,
       follow: true,
@@ -73,54 +78,91 @@ export function generateRootMetadata(): Metadata {
         "max-video-preview": -1,
       },
     },
+
     // Icons configuration for all favicon sizes and formats
     icons: {
-      icon: [
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
+    },
+
+    // Web app manifest for PWA
+    manifest: "/site.webmanifest",
+
+    // Open Graph metadata - Essential for social sharing
+    openGraph: {
+      type: "website",
+      locale: SEO_CONFIG.locale,
+      alternateLocale: ["en_GB", "en_AU"],
+      url,
+      siteName: APP_NAME,
+      title: SEO_CONFIG.title,
+      description: SEO_CONFIG.description,
+      countryName: "United States",
+      images: [
         {
-          url: "/favicon.ico",
-          sizes: "any",
-        },
-        {
-          url: "/favicon-16x16.png",
-          sizes: "16x16",
+          url: `${url}/default-thumbnail.png`,
+          width: 1200,
+          height: 630,
+          alt: APP_NAME,
           type: "image/png",
+          secureUrl: `${url}/default-thumbnail.png`,
         },
+        // Secondary OG image for different aspect ratios
         {
-          url: "/favicon-32x32.png",
-          sizes: "32x32",
+          url: `${url}/default-thumbnail.png`,
+          width: 800,
+          height: 600,
+          alt: `${APP_NAME} - Alternative`,
           type: "image/png",
-        },
-      ],
-      apple: [
-        {
-          url: "/apple-touch-icon.png",
-          sizes: "180x180",
-          type: "image/png",
-        },
-      ],
-      other: [
-        {
-          rel: "android-chrome-192x192",
-          url: "/android-chrome-192x192.png",
-          sizes: "192x192",
-          type: "image/png",
-        },
-        {
-          rel: "android-chrome-512x512",
-          url: "/android-chrome-512x512.png",
-          sizes: "512x512",
-          type: "image/png",
-        },
-        {
-          rel: "mask-icon",
-          url: "/favicon.ico",
-          color: SEO_CONFIG.themeColor,
         },
       ],
     },
-    // Web app manifest
-    manifest: "/site.webmanifest",
-    // Theme color for browser UI
+
+    // Twitter Card metadata - Important for Twitter sharing
+    twitter: {
+      card: "summary_large_image",
+      title: SEO_CONFIG.title,
+      description: SEO_CONFIG.description,
+      creator: SEO_CONFIG.twitterHandle,
+      site: SEO_CONFIG.twitterHandle,
+      images: {
+        url: `${url}/default-thumbnail.png`,
+        alt: APP_NAME,
+      },
+    },
+
+    // Mobile and app configuration
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: APP_NAME,
+      startupImage: [
+        {
+          url: "/apple-touch-icon.png",
+          media: "(device-width: 375px) and (device-height: 812px)",
+        },
+      ],
+    },
+
+    // Format detection
+    formatDetection: {
+      telephone: false,
+      email: false,
+      address: false,
+    },
+  };
+}
+
+/**
+ * Generate viewport configuration for extended support
+ */
+export function generateViewportConfig() {
+  return {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
     themeColor: [
       {
         media: "(prefers-color-scheme: light)",
@@ -131,51 +173,6 @@ export function generateRootMetadata(): Metadata {
         color: SEO_CONFIG.themeColor,
       },
     ],
-    // Open Graph metadata
-    openGraph: {
-      type: "website",
-      locale: SEO_CONFIG.locale,
-      url,
-      siteName: APP_NAME,
-      title: SEO_CONFIG.title,
-      description: SEO_CONFIG.description,
-      images: [
-        {
-          url: SEO_CONFIG.defaultOgImage,
-          width: 1200,
-          height: 630,
-          alt: APP_NAME,
-          type: "image/png",
-        },
-      ],
-    },
-    // Twitter metadata
-    twitter: {
-      card: "summary_large_image",
-      title: SEO_CONFIG.title,
-      description: SEO_CONFIG.description,
-      creator: SEO_CONFIG.twitterHandle,
-      images: [SEO_CONFIG.defaultOgImage],
-    },
-    // Viewport configuration
-    viewport: {
-      width: "device-width",
-      initialScale: 1,
-      maximumScale: 5,
-      userScalable: true,
-    },
-    // App URLs for mobile
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: "black-translucent",
-      title: APP_NAME,
-    },
-    // Format detection
-    formatDetection: {
-      telephone: false,
-      email: false,
-      address: false,
-    },
   };
 }
 
@@ -224,6 +221,7 @@ export function generateMetadata(
     publisher: APP_NAME,
     robots: noindex ? "noindex, nofollow" : "index, follow",
     canonical: url,
+    metadataBase: new URL(SEO_CONFIG.baseUrl),
     alternates: {
       canonical: url,
     },
@@ -231,7 +229,7 @@ export function generateMetadata(
       title: pageTitle,
       description: pageDescription,
       url,
-      type: ogType,
+      type: ogType as "website" | "article" | "profile",
       images: [
         {
           url: absoluteOgImage,
@@ -239,6 +237,7 @@ export function generateMetadata(
           height: 630,
           alt: pageTitle,
           type: "image/png",
+          secureUrl: absoluteOgImage,
         },
       ],
       siteName: APP_NAME,
@@ -250,8 +249,11 @@ export function generateMetadata(
       description: pageDescription,
       images: [absoluteOgImage],
       creator: SEO_CONFIG.twitterHandle,
+      site: SEO_CONFIG.twitterHandle,
     },
-    ...(publishedTime && { article: { publishedTime } }),
+    ...(publishedTime && {
+      article: { publishedTime, authors: [author || SEO_CONFIG.author] },
+    }),
     ...(modifiedTime && { article: { modifiedTime } }),
     ...(tags.length > 0 && { article: { tags } }),
   };

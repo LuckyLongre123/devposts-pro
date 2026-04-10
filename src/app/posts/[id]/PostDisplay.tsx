@@ -419,6 +419,8 @@ export default function PostDisplay({
                 src={post.thumbnailUrl || DEFAULT_THUMBNAIL}
                 alt={post.title}
                 fill
+                priority
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 896px"
                 className="object-cover"
               />
             </div>
@@ -479,7 +481,6 @@ export default function PostDisplay({
               </span>
 
               <div className="flex items-center gap-2">
-                <ShareButton post={post} variant="icon" />
                 {isOwner && (
                   <button
                     onClick={() => setIsEditing(true)}
