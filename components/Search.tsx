@@ -17,7 +17,8 @@ import { useDebouncedCallback } from "use-debounce";
 const SORT_OPTIONS = [
   { label: "Latest First", value: "latest", icon: "↓" },
   { label: "Oldest First", value: "oldest", icon: "↑" },
-  { label: "Most Popular", value: "popular", icon: "🔥" },
+  // ✅ UI update: "Most Popular" ko "Most Liked" kar diya aur icon change kar diya
+  { label: "Most Liked", value: "popular", icon: "❤️" },
   { label: "A → Z", value: "az", icon: "A" },
 ];
 
@@ -38,16 +39,18 @@ const DATE_OPTIONS = [
 export default function Search({
   placeholder,
   userRole,
+  hideAuthorFilter = false,
 }: {
   placeholder: string;
   userRole: string | undefined;
+  hideAuthorFilter?: boolean;
 }) {
   const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const isAdmin = userRole === "admin"; // role check
+  const isAdmin = userRole === "admin";
 
   const [showFilters, setShowFilters] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -65,9 +68,9 @@ export default function Search({
   const activeAuthor = searchParams.get("author") ?? "";
 
   const activeFilterCount = [
-    isAdmin && activeStatus !== "all" ? 1 : 0, // sirf admin ke liye count
+    isAdmin && activeStatus !== "all" ? 1 : 0,
     activeDate ? 1 : 0,
-    activeAuthor ? 1 : 0,
+    !hideAuthorFilter && activeAuthor ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   useEffect(() => {
@@ -109,7 +112,7 @@ export default function Search({
     SORT_OPTIONS.find((s) => s.value === activeSort) ?? SORT_OPTIONS[0];
 
   return (
-    <div className=" font-medium">
+    <div className="font-medium">
       <div className="flex items-center gap-2">
         {/* Search Input */}
         <div className="relative flex-1">
@@ -219,7 +222,7 @@ export default function Search({
               </div>
 
               <div className="space-y-4 p-4">
-                {/* Status — sirf admin ko dikhega */}
+                {/* Status */}
                 {isAdmin && (
                   <div>
                     <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground/50">
@@ -274,24 +277,26 @@ export default function Search({
                 </div>
 
                 {/* Author */}
-                <div>
-                  <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground/50">
-                    <User className="h-3.5 w-3.5" /> Author
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/40" />
-                    <input
-                      type="text"
-                      placeholder="Search by author name…"
-                      value={authorValue}
-                      onChange={(e) => {
-                        setAuthorValue(e.target.value);
-                        handleAuthor(e.target.value);
-                      }}
-                      className="w-full rounded-xl border-2 border-foreground/10 bg-background/50 py-2 pl-8 pr-3 text-xs font-medium placeholder:text-foreground/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    />
+                {!hideAuthorFilter && (
+                  <div>
+                    <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground/50">
+                      <User className="h-3.5 w-3.5" /> Author
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/40" />
+                      <input
+                        type="text"
+                        placeholder="Search by author name…"
+                        value={authorValue}
+                        onChange={(e) => {
+                          setAuthorValue(e.target.value);
+                          handleAuthor(e.target.value);
+                        }}
+                        className="w-full rounded-xl border-2 border-foreground/10 bg-background/50 py-2 pl-8 pr-3 text-xs font-medium placeholder:text-foreground/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {activeFilterCount > 0 && (
@@ -300,7 +305,7 @@ export default function Search({
                     onClick={() => {
                       setAuthorValue("");
                       setShowFilters(false);
-                      replace("/posts");
+                      replace(pathname);
                     }}
                     className="w-full rounded-xl border-2 border-foreground/10 bg-background/50 py-2 text-xs font-semibold text-foreground/50 hover:border-foreground/20 hover:text-foreground/70 transition-all"
                   >
@@ -335,7 +340,6 @@ export default function Search({
               onRemove={() => updateParam("sort", "")}
             />
           )}
-          {/* Status pill — sirf admin ke liye */}
           {isAdmin && activeStatus && activeStatus !== "all" && (
             <FilterPill
               label={
@@ -354,7 +358,8 @@ export default function Search({
               onRemove={() => updateParam("date", "")}
             />
           )}
-          {activeAuthor && (
+
+          {!hideAuthorFilter && activeAuthor && (
             <FilterPill
               label={`Author: ${activeAuthor}`}
               onRemove={() => {

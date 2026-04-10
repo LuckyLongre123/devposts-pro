@@ -33,6 +33,8 @@ import {
   SuggestionBox,
 } from "../../../../components/post/PostComponents";
 import { useAuthStore } from "@/store/useAuthStore";
+import ThumbnailUpload from "../../../../components/ThumbnailUpload";
+import { useDraftStorage } from "@/hooks/useDraftStorage";
 
 const API_ERROR_MESSAGES: Record<string, string> = {
   QUOTA_EXCEEDED: "AI quota exceeded. Please try again later.",
@@ -57,6 +59,7 @@ export default function CreatePostPage() {
   const router = useRouter();
 
   const [isAiLoading, setIsAiLoading] = useState<"title" | "body" | null>(null);
+  const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<{
     field: "title" | "body";
     original: string;
@@ -65,10 +68,14 @@ export default function CreatePostPage() {
 
   // Only the content field has a preview mode — NOT a global page state
   const [contentPreview, setContentPreview] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const user = useAuthStore((st) => st.user);
+
+  // Draft storage hook
+  const { saveDraft, loadDraft, clearDraft } = useDraftStorage();
 
   const {
     register,
@@ -83,7 +90,32 @@ export default function CreatePostPage() {
   });
 
   const watched = { title: watch("title", ""), body: watch("body", "") };
-  const isAnyBusy = isAiLoading !== null || isSubmitting;
+  const isAnyBusy =
+    isAiLoading !== null || isSubmitting || isThumbnailUploading;
+
+  // Load draft on component mount
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) {
+      if (draft.title) setValue("title", draft.title);
+      if (draft.body) setValue("body", draft.body);
+      if (draft.thumbnailUrl) setThumbnailUrl(draft.thumbnailUrl);
+      toast.success("Draft restored! ✨", { duration: 2000 });
+    }
+  }, []);
+
+  // Auto-save draft every time data changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveDraft({
+        title: watched.title,
+        body: watched.body,
+        thumbnailUrl: thumbnailUrl || undefined,
+      });
+    }, 1000); // Save after 1 second of inactivity
+
+    return () => clearTimeout(timer);
+  }, [watched.title, watched.body, thumbnailUrl]);
 
   // Auto-grow textarea
   useEffect(() => {
@@ -188,8 +220,6 @@ ${body}`;
 
   // ── AI Enhance ──
   const handleEnhance = (field: "title" | "body") => {
-    if (user?.aiTokens === 0)
-      return toast.error(API_ERROR_MESSAGES.USER_QUOTA_EXCEEDED);
     if (isAnyBusy) {
       toast.error("Please wait — another operation is already in progress.");
       return;
@@ -265,10 +295,15 @@ ${body}`;
   // ── Create ──
   const onSubmit = async (data: PostDataType) => {
     if (isAnyBusy) return;
+    const postData = {
+      ...data,
+      thumbnailUrl: thumbnailUrl || null, // Include optional thumbnail
+    };
+
     const postAction = fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(postData),
     }).then(async (r) => {
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
@@ -280,6 +315,7 @@ ${body}`;
     toast.promise(postAction, {
       loading: "Creating your post…",
       success: (res) => {
+        clearDraft(); // Clear draft after successful creation
         router.push(`/posts/${res.data.id}`);
         return "Post Created!";
       },
@@ -315,6 +351,11 @@ ${body}`;
               <>
                 <RefreshCw className="h-3 w-3 animate-spin" />
                 <span className="hidden xs:inline">Createing…</span>
+              </>
+            ) : isThumbnailUploading ? (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span className="hidden xs:inline">Uploading…</span>
               </>
             ) : isAiLoading ? (
               <>
@@ -578,6 +619,13 @@ ${body}`;
               />
             )}
           </section>
+
+          {/* ══ Thumbnail Upload Section ══ */}
+          <ThumbnailUpload
+            onImageUploaded={setThumbnailUrl}
+            onUploadStateChange={setIsThumbnailUploading}
+            disabled={isAnyBusy}
+          />
 
           {/* ── Live stats ── */}
           {(watched.title.length > 0 || watched.body.length > 0) && (

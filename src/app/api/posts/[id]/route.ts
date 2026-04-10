@@ -20,6 +20,7 @@ export async function PUT(
     }
 
     const { body, title } = validatedData.data;
+    const { thumbnailUrl } = reqBody; // Extract thumbnailUrl from request
 
     const existingPost = await prisma.post.findUnique({
       where: { id },
@@ -37,6 +38,8 @@ export async function PUT(
       data: {
         title,
         body,
+        thumbnailUrl:
+          thumbnailUrl !== undefined ? thumbnailUrl : existingPost.thumbnailUrl, // Update if provided
       },
     });
 

@@ -167,6 +167,7 @@ export async function POST(req: Request) {
     }
 
     const { title, body: content } = validatedData.data;
+    const { thumbnailUrl } = body; // Extract thumbnailUrl from request
 
     const userId = req.headers.get("x-user-id");
 
@@ -181,6 +182,7 @@ export async function POST(req: Request) {
       data: {
         title,
         body: content,
+        thumbnailUrl: thumbnailUrl || null, // Optional — null means use default
         authorId: userId,
       },
     });

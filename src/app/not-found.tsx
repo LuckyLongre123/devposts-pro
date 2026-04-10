@@ -1,4 +1,14 @@
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { generateViewport } from "@/lib/seo-config";
+
+export const metadata: Metadata = {
+  title: "Page Not Found | DevPostS Pro",
+  description: "The page you're looking for doesn't exist or has been moved.",
+  robots: "noindex, nofollow",
+};
+
+export const viewport: Viewport = generateViewport();
 
 export default function NotFound() {
   return (

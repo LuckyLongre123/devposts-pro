@@ -1,40 +1,99 @@
-import { PostType } from "@/types";
 import prisma from "../../prisma/lib/prisma";
+import { headers } from "next/headers";
 
-export async function getPosts(userId: string, page: number, limit: number) {
+export async function getPosts(
+  userId: string,
+  page: number = 1,
+  limit: number = 9,
+  searchQuery: string = "",
+  sortParam: string = "latest",
+  statusParam: string = "all",
+  dateParam: string = "",
+) {
   const skip = (page - 1) * limit;
+
+  const where: any = {
+    authorId: userId,
+  };
+
+  if (searchQuery) {
+    where.OR = [
+      { title: { contains: searchQuery, mode: "insensitive" } },
+      { body: { contains: searchQuery, mode: "insensitive" } },
+    ];
+  }
+
+  if (statusParam === "published") {
+    where.published = true;
+  } else if (statusParam === "draft") {
+    where.published = false;
+  }
+
+  if (dateParam) {
+    const now = new Date();
+    let startDate;
+
+    if (dateParam === "today") startDate = new Date(now.setHours(0, 0, 0, 0));
+    else if (dateParam === "week")
+      startDate = new Date(now.setDate(now.getDate() - 7));
+    else if (dateParam === "month")
+      startDate = new Date(now.setMonth(now.getMonth() - 1));
+    else if (dateParam === "year")
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+
+    if (startDate) where.createdAt = { gte: startDate };
+  }
+
+  let orderBy: any = { createdAt: "desc" };
+
+  if (sortParam === "oldest") {
+    orderBy = { createdAt: "asc" };
+  } else if (sortParam === "az") {
+    orderBy = { title: "asc" };
+  } else if (sortParam === "popular") {
+    // ✅ FIX: Relation array ke count ke hisaab se sort karna
+    orderBy = { likes: { _count: "desc" } };
+  }
 
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
-      where: { authorId: userId },
+      where,
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy,
+      // ✅ FIX: Author ka naam aur Likes ka count fetch karna
+      include: {
+        author: {
+          select: { name: true },
+        },
+        _count: {
+          select: { likes: true },
+        },
+      },
     }),
     prisma.post.count({
-      where: { authorId: userId },
+      where,
     }),
   ]);
 
   return {
     posts,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.ceil(total / limit) || 1,
   };
 }
 
-export async function getSinglePost(postId: string) {
+export async function getSinglePost(postId: string, currentUserId?: string) {
   try {
-    if (!postId) {
-      return Response.json(
-        { success: false, message: "invalid id" },
-        { status: 422 },
-      );
-    }
+    if (!postId) return { success: false, message: "Invalid ID" };
 
+    // ✅ Headers hatayein aur direct currentUserId use karein
     const existingPost = await prisma.post.findUnique({
       where: { id: postId },
       include: {
         author: true,
+        _count: {
+          select: { likes: true },
+        },
       },
     });
 
@@ -42,14 +101,33 @@ export async function getSinglePost(postId: string) {
       return { success: false, message: "Post not found" };
     }
 
+    let hasLiked = false;
+
+    // ✅ yahan currentUserId check karein
+    if (currentUserId) {
+      const userLike = await prisma.like.findFirst({
+        where: {
+          postId: postId,
+          userId: currentUserId,
+        },
+      });
+      hasLiked = userLike !== null;
+    }
+
+    const likesCount = existingPost._count ? existingPost._count.likes : 0;
+    delete (existingPost as any)._count;
+
     return {
       success: true,
-      data: existingPost,
+      data: {
+        ...existingPost,
+        hasLiked: hasLiked,
+        likesCount: likesCount,
+      },
       message: "Post retrieved successfully",
     };
   } catch (error: any) {
-    console.error("DELETE ERROR:", error);
-
+    console.error("GET POST ERROR:", error);
     return {
       success: false,
       message: error?.message || "Something went wrong",
@@ -59,119 +137,93 @@ export async function getSinglePost(postId: string) {
 
 export async function getPublishedPosts(
   searchQuery: string = "",
-  currentPage: number = 1,
+  page: number = 1,
   limit: number = 9,
-  sort: string = "latest",
-  date: string = "",
-  author: string = "",
-  status: string = "published",
+  sortParam: string = "latest",
+  dateParam: string = "",
+  authorParam: string = "",
+  statusParam: string = "published",
   isAdmin: boolean = false,
 ) {
-  try {
-    const skip = (currentPage - 1) * limit;
-    const whereClause: any = {};
+  const skip = (page - 1) * limit;
+  const where: any = {};
 
-    if (isAdmin) {
-      if (status === "draft") whereClause.published = false;
-      else if (status === "published") whereClause.published = true;
-    } else {
-      whereClause.published = true;
-    }
-
-    if (searchQuery) {
-      whereClause.OR = [
-        { title: { contains: searchQuery, mode: "insensitive" } },
-        { body: { contains: searchQuery, mode: "insensitive" } },
-      ];
-    }
-
-    if (date) {
-      const now = new Date();
-      let dateFrom: Date;
-
-      switch (date) {
-        case "today":
-          dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case "week":
-          dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "month":
-          dateFrom = new Date(
-            now.getFullYear(),
-            now.getMonth() - 1,
-            now.getDate(),
-          );
-          break;
-        case "year":
-          dateFrom = new Date(
-            now.getFullYear() - 1,
-            now.getMonth(),
-            now.getDate(),
-          );
-          break;
-        default:
-          dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      }
-
-      whereClause.createdAt = { gte: dateFrom };
-    }
-
-    if (author) {
-      whereClause.author = {
-        name: { contains: author, mode: "insensitive" },
-      };
-    }
-
-    let orderBy: any;
-    switch (sort) {
-      case "oldest":
-        orderBy = { createdAt: "asc" };
-        break;
-      case "az":
-        orderBy = { title: "asc" };
-        break;
-      case "popular":
-        orderBy = { createdAt: "desc" };
-        break;
-      default:
-        orderBy = { createdAt: "desc" };
-    }
-
-    // Yahan print karo — terminal mein dikhega
-    console.log("=== getPublishedPosts DEBUG ===");
-    console.log("Params:", {
-      searchQuery,
-      currentPage,
-      sort,
-      date,
-      author,
-      status,
-      isAdmin,
-    });
-    console.log("whereClause:", JSON.stringify(whereClause, null, 2));
-    console.log("orderBy:", orderBy);
-
-    const [posts, totalCount] = await Promise.all([
-      prisma.post.findMany({
-        where: whereClause,
-        skip,
-        take: limit,
-        orderBy,
-        include: { author: { select: { name: true } } },
-      }),
-      prisma.post.count({ where: whereClause }),
-    ]);
-
-    console.log("totalCount:", totalCount, "| posts returned:", posts.length);
-    console.log("==============================");
-
-    return {
-      posts: posts as unknown as PostType[],
-      totalPages: Math.ceil(totalCount / limit),
-    };
-  } catch (error) {
-    console.error("Database Error:", error);
-    throw new Error("Failed to fetch posts.");
+  // 📝 Status Filter (Admin can see all/drafts, others see published)
+  if (statusParam === "published") {
+    where.published = true;
+  } else if (statusParam === "draft") {
+    where.published = false;
   }
+
+  // 🔍 Search Query Filter
+  if (searchQuery) {
+    where.OR = [
+      { title: { contains: searchQuery, mode: "insensitive" } },
+      { body: { contains: searchQuery, mode: "insensitive" } },
+    ];
+  }
+
+  // 👤 Author Filter
+  if (authorParam) {
+    where.author = {
+      name: { contains: authorParam, mode: "insensitive" },
+    };
+  }
+
+  // 📅 Date Range Filter
+  if (dateParam) {
+    const now = new Date();
+    let startDate;
+
+    if (dateParam === "today") startDate = new Date(now.setHours(0, 0, 0, 0));
+    else if (dateParam === "week")
+      startDate = new Date(now.setDate(now.getDate() - 7));
+    else if (dateParam === "month")
+      startDate = new Date(now.setMonth(now.getMonth() - 1));
+    else if (dateParam === "year")
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+
+    if (startDate) {
+      where.createdAt = { gte: startDate };
+    }
+  }
+
+  // 🔄 Sort Filter
+  let orderBy: any = { createdAt: "desc" };
+
+  if (sortParam === "oldest") {
+    orderBy = { createdAt: "asc" };
+  } else if (sortParam === "az") {
+    orderBy = { title: "asc" };
+  } else if (sortParam === "popular") {
+    // ✅ FIX 1: Popular ko Likes ke hisaab se sort karna
+    orderBy = { likes: { _count: "desc" } };
+  }
+
+  // Fetch data
+  const [posts, total] = await Promise.all([
+    prisma.post.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: {
+        author: {
+          select: { name: true },
+        },
+        // ✅ FIX 2: Har post ke total likes count karke lana
+        _count: {
+          select: { likes: true },
+        },
+      },
+    }),
+    prisma.post.count({
+      where,
+    }),
+  ]);
+
+  return {
+    posts,
+    totalPages: Math.ceil(total / limit) || 1,
+  };
 }

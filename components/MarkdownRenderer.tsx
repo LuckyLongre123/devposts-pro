@@ -13,27 +13,39 @@ export default function MarkdownRenderer({ content }: { content: string }) {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={{
-          // Removed 'inline' from the destructured props
           code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
 
-            // If it's a code block with a language (match exists), render with Highlight.js
-            return match ? (
-              <pre className="rounded-lg">
-                <code
-                  {...props}
-                  dangerouslySetInnerHTML={{
-                    __html: hljs.highlight(
-                      String(children).replace(/\n$/, ""),
-                      {
-                        language: match[1],
-                      },
-                    ).value,
-                  }}
-                />
-              </pre>
-            ) : (
-              // Otherwise, render as standard inline code
+            if (match) {
+              const lang = match[1];
+              const codeString = String(children).replace(/\n$/, "");
+
+              const languageMap: Record<string, string> = {
+                env: "bash",
+                prisma: "graphql", // Prisma syntax is somewhat similar to graphql for basic highlighting
+              };
+
+              const mappedLang = languageMap[lang] || lang;
+
+              const isSupported = !!hljs.getLanguage(mappedLang);
+              const languageToUse = isSupported ? mappedLang : "plaintext"; // Fallback to plaintext
+
+              const highlightedHtml = hljs.highlight(codeString, {
+                language: languageToUse,
+              }).value;
+
+              return (
+                <pre className="rounded-lg">
+                  <code
+                    {...props}
+                    className={className} // Preserve original class names
+                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                  />
+                </pre>
+              );
+            }
+
+            return (
               <code className="bg-foreground/10 px-1 py-0.5 rounded" {...props}>
                 {children}
               </code>

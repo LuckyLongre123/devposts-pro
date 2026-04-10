@@ -83,9 +83,11 @@ export async function POST(req: Request) {
   const now = new Date();
   const lastCall = user.lastAiCall || new Date(0);
 
-  const isExpired = now.getTime() - lastCall.getTime() > 24 * 60 * 60 * 1000;
+  const nowStr = now.toISOString().split("T")[0]; // Output: YYYY-MM-DD
+  const lastCallStr = lastCall.toISOString().split("T")[0];
 
-  // Agar 24 ghante ho gaye to 5 set karo, nahi to DB wala amount uthao
+  const isExpired = nowStr !== lastCallStr;
+
   let availableTokens = isExpired
     ? MAX_DAILY_TOKENS < user.aiTokens
       ? user.aiTokens
@@ -96,7 +98,7 @@ export async function POST(req: Request) {
   if (availableTokens <= 0) {
     return errorRes(
       "Daily Limit Reached",
-      "You have 0 AI tokens remaining. Please wait 24 hours.",
+      "Your daily quota reached. Please try again next day",
       ERROR_CODES.USER_QUOTA_EXCEEDED,
       false,
       429,
@@ -154,7 +156,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5. Success! Naya token balance nikal kar DB update karo (-1)
     const newBalance = availableTokens - 1;
 
     await prisma.user.update({
@@ -165,7 +166,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // 6. Frontend ko remaining balance bhej do
     return NextResponse.json(
       {
         text: raw,

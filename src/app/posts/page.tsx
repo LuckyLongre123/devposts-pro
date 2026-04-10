@@ -1,11 +1,30 @@
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { PostType } from "@/types";
 import { getPublishedPosts } from "@/lib/data";
 import Search from "../../../components/Search";
 import { getAuthenticatedUser } from "@/lib/auth";
 import PostCard from "../../../components/PostCard";
+import { PAGE_METADATA } from "@/lib/seo-config";
+import {
+  generateMetadata as generateSeoMetadata,
+  generateViewport,
+} from "@/lib/seo-config";
 
-export const revalidate = 60;
+// ✅ FIX: revalidate = 60 ko hatakar force-dynamic kar diya.
+// Ab like karke wapas aane par hamesha updated likes dikhenge!
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = generateSeoMetadata(
+  PAGE_METADATA.posts.title,
+  PAGE_METADATA.posts.description,
+  {
+    pathname: "/posts",
+    tags: ["blog", "posts", "articles", "writing"],
+  },
+);
+
+export const viewport: Viewport = generateViewport();
 
 export default async function Posts({
   searchParams,
@@ -20,7 +39,7 @@ export default async function Posts({
   }>;
 }) {
   const user = await getAuthenticatedUser();
-  const isAdmin = user?.role === "admin"; // ✅ Admin check ko upar nikaal liya
+  const isAdmin = user?.role === "admin";
 
   const { page, query, sort, status, date, author } = await searchParams;
 
@@ -28,7 +47,6 @@ export default async function Posts({
   const searchQuery = query || "";
   const sortParam = sort || "latest";
 
-  // ✅ FIX 1: Agar admin hai toh default "all" dikhao, warna "published" dikhao
   const statusParam = status || (isAdmin ? "all" : "published");
 
   const dateParam = date || "";
@@ -72,7 +90,6 @@ export default async function Posts({
     if (searchQuery) params.set("query", searchQuery);
     if (sortParam && sortParam !== "latest") params.set("sort", sortParam);
 
-    // ✅ FIX 2: Agar admin hai, toh jo bhi status ho use URL mein rehne do ( !== "all" hata diya)
     if (isAdminRole && statusParam) {
       params.set("status", statusParam);
     }

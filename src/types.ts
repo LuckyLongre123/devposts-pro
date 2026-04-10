@@ -23,14 +23,18 @@ export type PostType = {
   title: string;
   body: string;
   published: boolean;
+  thumbnailUrl?: string | null; // Optional thumbnail URL
   createdAt: string;
   updatedAt: string;
+  hasLiked?: boolean;
   likesCount?: number;
-  isLikedByUser?: boolean;
   author?: {
     // ← yeh add karo
     id: string;
     name: string;
+  };
+  _count?: {
+    likes: number;
   };
 };
 

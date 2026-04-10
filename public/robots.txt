@@ -1,0 +1,38 @@
+# Robots.txt for DevPostS Pro
+# Directives for search engine crawlers
+
+# Block spiders from indexing private/protected areas
+User-agent: *
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /profile
+Disallow: /signin
+Disallow: /signup
+
+# Allow search engines to index public content
+Allow: /
+Allow: /posts
+Allow: /about
+Allow: /contact
+
+# Sitemap location
+Sitemap: https://devpostspro.com/sitemap.xml
+
+# Crawl delay to respect server resources
+Crawl-delay: 1
+
+# User-agent specific rules (optional)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /

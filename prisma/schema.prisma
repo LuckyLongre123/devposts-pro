@@ -25,6 +25,7 @@ model User {
   name     String?
   role     Role    @default(user)
   posts    Post[]
+  likes Like[]
 
   aiTokens   Int       @default(5)
   lastAiCall DateTime? @default(now())
@@ -37,12 +38,17 @@ model User {
 
 // 2. Post Model
 model Post {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   title     String
   body      String
-  published Boolean  @default(false)
+  published Boolean @default(false)
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  likes Like[]
+
+  thumbnailUrl String? // Optional — null means use default thumbnail
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -59,4 +65,18 @@ model Message {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Ek user ek post ko sirf ek hi baar like kar sakta hai
+  @@unique([userId, postId]) 
 }

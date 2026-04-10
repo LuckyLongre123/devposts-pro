@@ -24,9 +24,12 @@ import {
   UserIcon,
   EyeIcon,
   ShieldCheckIcon,
+  Heart,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import MarkdownRenderer from "../../../../components/MarkdownRenderer";
+import ShareButton from "../../../../components/ShareButton";
+import ThumbnailUpload from "../../../../components/ThumbnailUpload";
 import {
   DeleteOverlay,
   getCharMeta,
@@ -34,13 +37,15 @@ import {
   ProgressBar,
   StatPill,
 } from "../../../../components/post/PostComponents";
-
-// ─── Constants ─────────────────────────────────────────────────────────────────
+import Image from "next/image";
+import {
+  DEFAULT_THUMBNAIL,
+  THUMBNAIL_ASPECT_CLASS,
+} from "@/constants/thumbnails";
+import { useDraftStorage } from "@/hooks/useDraftStorage";
 
 const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const readingTime = (s: string) => Math.max(1, Math.round(wordCount(s) / 200));
-
-// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function PostDisplay({
   initialPost,
@@ -55,6 +60,26 @@ export default function PostDisplay({
   const [deleteStatus, setDeleteStatus] = useState<"deleting" | "redirecting">(
     "deleting",
   );
+  const [editThumbnailUrl, setEditThumbnailUrl] = useState<string | null>(null);
+  const initialLikes =
+    typeof initialPost.likesCount === "number"
+      ? initialPost.likesCount
+      : (initialPost._count?.likes ?? 0);
+
+  const initialHasLiked =
+    typeof initialPost.hasLiked === "boolean"
+      ? initialPost.hasLiked
+      : (initialPost as any).hasLiked === true;
+
+  const [likesCount, setLikesCount] = useState(initialLikes);
+  const [hasLiked, setHasLiked] = useState(initialHasLiked);
+  const [isLiking, setIsLiking] = useState(false);
+
+  useEffect(() => {
+    console.log("Initial Post Data from Server:", initialPost);
+    console.log("Parsed hasLiked:", initialHasLiked);
+    console.log("Parsed likesCount:", initialLikes);
+  }, [initialPost, initialHasLiked, initialLikes]);
 
   const isRequesting = useRef(false);
 
@@ -80,9 +105,75 @@ export default function PostDisplay({
   const isOwner = user?.id === initialPost?.author?.id;
 
   const isAnyBusy =
-    isRequesting.current || isTogglingPublish || isSubmitting || isDeleting;
+    isRequesting.current ||
+    isTogglingPublish ||
+    isSubmitting ||
+    isDeleting ||
+    isLiking;
 
-  // ── All original logic — untouched ───────────────────────────────────────
+  const { saveDraft, loadDraft, clearDraft } = useDraftStorage(initialPost.id);
+
+  useEffect(() => {
+    if (isEditing) {
+      const draft = loadDraft();
+      if (draft) {
+        reset({
+          title: draft.title || initialPost.title,
+          body: draft.body || initialPost.body,
+        });
+        if (draft.thumbnailUrl) setEditThumbnailUrl(draft.thumbnailUrl);
+        toast.success("Draft restored! ✨", { duration: 2000 });
+      }
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const timer = setTimeout(() => {
+      saveDraft({
+        title: watchedTitle,
+        body: watchedBody,
+        thumbnailUrl: editThumbnailUrl || undefined,
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [watchedTitle, watchedBody, editThumbnailUrl, isEditing]);
+
+  // ✅ Naya Like Toggle Function
+  const handleToggleLike = async () => {
+    if (!user) {
+      toast.error("Please sign in to like this post!");
+      return;
+    }
+    if (isLiking) return;
+
+    setIsLiking(true);
+
+    const previousHasLiked = hasLiked;
+    const previousLikesCount = likesCount;
+
+    setHasLiked(!hasLiked);
+    setLikesCount((prev) => (hasLiked ? Math.max(0, prev - 1) : prev + 1));
+
+    try {
+      const response = await fetch(`/api/posts/${post.id}/like`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to like post");
+      }
+
+      setHasLiked(data.liked);
+    } catch (error: any) {
+      setHasLiked(previousHasLiked);
+      setLikesCount(previousLikesCount);
+      toast.error(error.message);
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   const togglePublish = useCallback(async () => {
     if (isRequesting.current || isSubmitting || isDeleting) {
@@ -117,15 +208,23 @@ export default function PostDisplay({
       }
       isRequesting.current = true;
       try {
+        const requestData = {
+          ...data,
+          thumbnailUrl:
+            editThumbnailUrl !== undefined
+              ? editThumbnailUrl
+              : post.thumbnailUrl,
+        };
         const response = await fetch(`/api/posts/${post.id}`, {
           method: "PUT",
-          body: JSON.stringify(data),
+          body: JSON.stringify(requestData),
           headers: { "Content-Type": "application/json" },
         });
         const resData = await response.json();
         if (!response.ok) throw new Error(resData.message || "Failed to save");
         setPost(resData.data);
         setIsEditing(false);
+        setEditThumbnailUrl(null);
         toast.success("Saved");
       } catch (error: any) {
         toast.error(error.message || "Error saving post");
@@ -133,7 +232,13 @@ export default function PostDisplay({
         isRequesting.current = false;
       }
     },
-    [post.id, isTogglingPublish, isDeleting],
+    [
+      post.id,
+      post.thumbnailUrl,
+      editThumbnailUrl,
+      isTogglingPublish,
+      isDeleting,
+    ],
   );
 
   const handleDelete = useCallback(async () => {
@@ -176,27 +281,22 @@ export default function PostDisplay({
     }
   }, [post.id, router, isTogglingPublish, isSubmitting, isDeleting]);
 
-  // ── UI ────────────────────────────────────────────────────────────────────
-
   const titleMeta = getCharMeta(titleLen, LIMITS.TITLE_MIN, LIMITS.TITLE);
   const bodyMeta = getCharMeta(bodyLen, LIMITS.BODY_MIN, LIMITS.BODY);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Delete overlay */}
       {isDeleting && <DeleteOverlay status={deleteStatus} />}
 
-      {/* ── Sticky Navbar ── */}
       <div className="sticky top-0 z-20 border-b border-foreground/5 bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-4xl px-3 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
-          {/* Back */}
           <button
             onClick={() => {
               if (isDeleting) {
                 toast.error("Please wait, post is being deleted");
                 return;
               }
-              router.back();
+              router.push("/posts");
             }}
             className={`flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground transition-colors shrink-0 ${isDeleting ? "pointer-events-none opacity-30" : ""}`}
           >
@@ -204,12 +304,10 @@ export default function PostDisplay({
             <span className="hidden sm:inline">Go Back</span>
           </button>
 
-          {/* Owner actions */}
           {isOwner && (
             <div className="flex items-center gap-1.5 sm:gap-2">
               {!isEditing && (
                 <>
-                  {/* Publish toggle */}
                   <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-foreground/5 rounded-lg border border-foreground/10">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 hidden xs:inline">
                       {post.published ? "Live" : "Draft"}
@@ -231,7 +329,6 @@ export default function PostDisplay({
                     </button>
                   </div>
 
-                  {/* Edit */}
                   <button
                     onClick={() => setIsEditing(true)}
                     disabled={isAnyBusy}
@@ -241,7 +338,6 @@ export default function PostDisplay({
                     <PenIcon className="h-4 w-4" />
                   </button>
 
-                  {/* Delete */}
                   <button
                     onClick={handleDelete}
                     disabled={isAnyBusy}
@@ -257,15 +353,11 @@ export default function PostDisplay({
         </div>
       </div>
 
-      {/* ── Main ── */}
       <main className="mx-auto max-w-4xl px-3 sm:px-6 py-6 sm:py-10">
-        {/* ── READ MODE ── */}
         {!isEditing && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-            {/* Post meta header */}
             <div className="border-l-4 border-blue-500 pl-4 sm:pl-5 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Published badge */}
                 <span
                   className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border ${
                     post.published
@@ -285,12 +377,10 @@ export default function PostDisplay({
                 </span>
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground leading-tight">
                 {post.title}
               </h1>
 
-              {/* Author + date row */}
               <div className="flex items-start sm:items-center gap-3 pt-1">
                 <div className="h-8 w-8 rounded-full bg-blue-500/15 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
                   {initialPost?.author?.name?.charAt(0).toUpperCase() || "D"}
@@ -322,55 +412,90 @@ export default function PostDisplay({
               </div>
             </div>
 
-            {/* Stats pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <StatPill
-                icon={<Hash className="h-3 w-3" />}
-                value={wordCount(post.body)}
-                label="words"
-              />
-              <StatPill
-                icon={<Clock className="h-3 w-3" />}
-                value={readingTime(post.body)}
-                label="min read"
-              />
-              <StatPill
-                icon={<AlignLeftIcon className="h-3 w-3" />}
-                value={post.body.split("\n").filter(Boolean).length}
-                label="paragraphs"
+            <div
+              className={`relative w-full ${THUMBNAIL_ASPECT_CLASS} rounded-xl overflow-hidden bg-foreground/5 border border-foreground/10`}
+            >
+              <Image
+                src={post.thumbnailUrl || DEFAULT_THUMBNAIL}
+                alt={post.title}
+                fill
+                className="object-cover"
               />
             </div>
 
-            {/* Divider */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleToggleLike}
+                  disabled={isLiking && !user}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${
+                    hasLiked
+                      ? "bg-red-500/10 border-red-500/30 text-red-500 shadow-sm"
+                      : "bg-foreground/5 border-foreground/10 text-foreground/60 hover:bg-red-500/5 hover:border-red-500/30 hover:text-red-400"
+                  }`}
+                >
+                  <Heart
+                    className={`h-4 w-4 transition-transform ${hasLiked ? "fill-red-500 scale-110" : "scale-100"} ${isLiking ? "animate-pulse" : ""}`}
+                  />
+                  <span className="text-sm font-semibold">{likesCount}</span>
+                </button>
+                <span className="h-1 w-1 rounded-full bg-foreground/20 hidden sm:block" />
+
+                <StatPill
+                  icon={<Hash className="h-3 w-3" />}
+                  value={wordCount(post.body)}
+                  label="words"
+                />
+                <StatPill
+                  icon={<Clock className="h-3 w-3" />}
+                  value={readingTime(post.body)}
+                  label="min"
+                />
+              </div>
+
+              <div className="hidden sm:block">
+                <ShareButton post={post} variant="compact" />
+              </div>
+            </div>
+
+            <div className="sm:hidden">
+              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] p-4 flex items-center justify-between">
+                <div className="text-sm font-medium text-foreground/70">
+                  Liked this post?
+                </div>
+                <ShareButton post={post} variant="icon" />
+              </div>
+            </div>
+
             <div className="h-px w-full bg-foreground/5" />
 
-            {/* Rendered markdown content */}
             <div className="prose prose-invert max-w-none">
               <MarkdownRenderer content={post.body} />
             </div>
 
-            {/* Footer */}
-            <div className="pt-6 border-t border-foreground/5 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-widest text-foreground/25">
-              <span className="leading-relaxed">
+            <div className="pt-6 border-t border-foreground/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/25 leading-relaxed">
                 Last modified: {new Date(post.updatedAt).toLocaleString()}
               </span>
-              {isOwner && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  disabled={isAnyBusy}
-                  className="flex items-center gap-1.5 text-foreground/30 hover:text-blue-400 transition-colors normal-case text-xs font-semibold tracking-normal disabled:pointer-events-none shrink-0"
-                >
-                  <PenIcon className="h-3.5 w-3.5" /> Edit this post
-                </button>
-              )}
+
+              <div className="flex items-center gap-2">
+                <ShareButton post={post} variant="icon" />
+                {isOwner && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    disabled={isAnyBusy}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-foreground/30 hover:text-blue-400 hover:bg-blue-500/5 transition-colors normal-case text-xs font-semibold tracking-normal disabled:pointer-events-none disabled:opacity-30 shrink-0"
+                  >
+                    <PenIcon className="h-3.5 w-3.5" /> Edit
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── EDIT MODE ── */}
         {isEditing && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
-            {/* Edit mode header */}
             <div className="border-l-4 border-amber-500 pl-4 sm:pl-5">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 Edit Post
@@ -385,7 +510,6 @@ export default function PostDisplay({
               onSubmit={handleSubmit(onSubmit)}
               className="space-y-6 sm:space-y-8"
             >
-              {/* ── Title ── */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-foreground/80 shrink-0">
@@ -423,7 +547,6 @@ export default function PostDisplay({
                 )}
               </section>
 
-              {/* ── Body ── */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-foreground/80 shrink-0">
@@ -440,7 +563,6 @@ export default function PostDisplay({
                   </span>
                 </div>
 
-                {/* Markdown hint chips */}
                 <div
                   className={`flex items-center gap-1.5 sm:gap-2 flex-wrap ${isSubmitting ? "opacity-30" : ""}`}
                 >
@@ -483,12 +605,17 @@ export default function PostDisplay({
                 )}
               </section>
 
-              {/* ── Action bar ── */}
+              <ThumbnailUpload
+                onImageUploaded={setEditThumbnailUrl}
+                disabled={isSubmitting}
+              />
+
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-5 sm:pt-6 border-t border-foreground/5">
                 <button
                   type="button"
                   onClick={() => {
                     setIsEditing(false);
+                    setEditThumbnailUrl(null);
                     reset();
                   }}
                   disabled={isSubmitting}
