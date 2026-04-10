@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 /**
  * SEO Configuration for DevPostS Pro
  * Centralized SEO metadata and constants
@@ -34,7 +36,148 @@ export const SEO_CONFIG = {
   defaultOgImage: `${BASE_URL}/default-thumbnail.png`,
   // Twitter Handle (update with your actual handle)
   twitterHandle: "@devpostspro",
+  // Brand Colors (Tailwind Blue-500)
+  themeColor: "#3b82f6",
 };
+
+/**
+ * Generate complete root metadata for the entire application
+ * Includes icons, favicons, webmanifest, OG, Twitter, and other SEO configs
+ */
+export function generateRootMetadata(): Metadata {
+  const url = SEO_CONFIG.baseUrl;
+
+  return {
+    title: {
+      default: SEO_CONFIG.title,
+      template: `%s | ${APP_NAME}`,
+    },
+    description: SEO_CONFIG.description,
+    keywords: SEO_CONFIG.keywords,
+    authors: [{ name: SEO_CONFIG.author }],
+    creator: SEO_CONFIG.author,
+    publisher: APP_NAME,
+    metadataBase: new URL(SEO_CONFIG.baseUrl),
+    alternates: {
+      canonical: url,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      nocache: false,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-snippet": -1,
+        "max-image-preview": "large",
+        "max-video-preview": -1,
+      },
+    },
+    // Icons configuration for all favicon sizes and formats
+    icons: {
+      icon: [
+        {
+          url: "/favicon.ico",
+          sizes: "any",
+        },
+        {
+          url: "/favicon-16x16.png",
+          sizes: "16x16",
+          type: "image/png",
+        },
+        {
+          url: "/favicon-32x32.png",
+          sizes: "32x32",
+          type: "image/png",
+        },
+      ],
+      apple: [
+        {
+          url: "/apple-touch-icon.png",
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ],
+      other: [
+        {
+          rel: "android-chrome-192x192",
+          url: "/android-chrome-192x192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          rel: "android-chrome-512x512",
+          url: "/android-chrome-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+        {
+          rel: "mask-icon",
+          url: "/favicon.ico",
+          color: SEO_CONFIG.themeColor,
+        },
+      ],
+    },
+    // Web app manifest
+    manifest: "/site.webmanifest",
+    // Theme color for browser UI
+    themeColor: [
+      {
+        media: "(prefers-color-scheme: light)",
+        color: "#ffffff",
+      },
+      {
+        media: "(prefers-color-scheme: dark)",
+        color: SEO_CONFIG.themeColor,
+      },
+    ],
+    // Open Graph metadata
+    openGraph: {
+      type: "website",
+      locale: SEO_CONFIG.locale,
+      url,
+      siteName: APP_NAME,
+      title: SEO_CONFIG.title,
+      description: SEO_CONFIG.description,
+      images: [
+        {
+          url: SEO_CONFIG.defaultOgImage,
+          width: 1200,
+          height: 630,
+          alt: APP_NAME,
+          type: "image/png",
+        },
+      ],
+    },
+    // Twitter metadata
+    twitter: {
+      card: "summary_large_image",
+      title: SEO_CONFIG.title,
+      description: SEO_CONFIG.description,
+      creator: SEO_CONFIG.twitterHandle,
+      images: [SEO_CONFIG.defaultOgImage],
+    },
+    // Viewport configuration
+    viewport: {
+      width: "device-width",
+      initialScale: 1,
+      maximumScale: 5,
+      userScalable: true,
+    },
+    // App URLs for mobile
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: APP_NAME,
+    },
+    // Format detection
+    formatDetection: {
+      telephone: false,
+      email: false,
+      address: false,
+    },
+  };
+}
 
 /**
  * Generate metadata object for a page

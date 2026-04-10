@@ -6,11 +6,7 @@ import Navbar from "../../components/Navbar";
 import { Toaster } from "react-hot-toast";
 import AuthInitializer from "../../components/auth/AuthInitializer";
 import { getAuthenticatedUser } from "@/lib/auth";
-import {
-  SEO_CONFIG,
-  generateMetadata,
-  generateViewport,
-} from "@/lib/seo-config";
+import { SEO_CONFIG, generateRootMetadata } from "@/lib/seo-config";
 import {
   getOrganizationSchema,
   getWebsiteSchema,
@@ -27,15 +23,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = generateMetadata(
-  SEO_CONFIG.appName,
-  SEO_CONFIG.description,
-  {
-    pathname: "/",
-  },
-);
+export const metadata: Metadata = generateRootMetadata();
 
-export const viewport: Viewport = generateViewport();
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    {
+      media: "(prefers-color-scheme: light)",
+      color: "#ffffff",
+    },
+    {
+      media: "(prefers-color-scheme: dark)",
+      color: SEO_CONFIG.themeColor,
+    },
+  ],
+};
 
 export default async function RootLayout({
   children,
