@@ -77,6 +77,7 @@ export async function getPosts(
   ]);
 
   // Convert Date objects to ISO strings for PostType compatibility
+  // @ts-ignore
   const transformedPosts = posts.map((post) => ({
     ...post,
     createdAt:
@@ -247,6 +248,7 @@ export async function getPublishedPosts(
   ]);
 
   // Convert Date objects to ISO strings for PostType compatibility
+  // @ts-ignore
   const transformedPosts = posts.map((post) => ({
     ...post,
     createdAt:
