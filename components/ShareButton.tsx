@@ -51,7 +51,7 @@ export default function ShareButton({
   }, []);
 
   const shareUrls = generateShareUrls(post);
-  const postUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/posts/${post.id}`;
+  const postUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devposts-pro.vercel.app"}/posts/${post.id}`;
 
   const handleNativeShare = async () => {
     const success = await sharePost(post);
