@@ -64,7 +64,7 @@ export async function getPosts(
       // ✅ FIX: Author ka naam aur Likes ka count fetch karna
       include: {
         author: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
         _count: {
           select: { likes: true },
@@ -76,8 +76,21 @@ export async function getPosts(
     }),
   ]);
 
+  // Convert Date objects to ISO strings for PostType compatibility
+  const transformedPosts = posts.map((post) => ({
+    ...post,
+    createdAt:
+      post.createdAt instanceof Date
+        ? post.createdAt.toISOString()
+        : String(post.createdAt),
+    updatedAt:
+      post.updatedAt instanceof Date
+        ? post.updatedAt.toISOString()
+        : String(post.updatedAt),
+  }));
+
   return {
-    posts,
+    posts: transformedPosts,
     totalPages: Math.ceil(total / limit) || 1,
   };
 }
@@ -117,13 +130,24 @@ export async function getSinglePost(postId: string, currentUserId?: string) {
     const likesCount = existingPost._count ? existingPost._count.likes : 0;
     delete (existingPost as any)._count;
 
+    // Convert Date objects to ISO strings for PostType compatibility
+    const postData = {
+      ...existingPost,
+      createdAt:
+        existingPost.createdAt instanceof Date
+          ? existingPost.createdAt.toISOString()
+          : String(existingPost.createdAt),
+      updatedAt:
+        existingPost.updatedAt instanceof Date
+          ? existingPost.updatedAt.toISOString()
+          : String(existingPost.updatedAt),
+      hasLiked: hasLiked,
+      likesCount: likesCount,
+    };
+
     return {
       success: true,
-      data: {
-        ...existingPost,
-        hasLiked: hasLiked,
-        likesCount: likesCount,
-      },
+      data: postData,
       message: "Post retrieved successfully",
     };
   } catch (error: any) {
@@ -209,7 +233,7 @@ export async function getPublishedPosts(
       orderBy,
       include: {
         author: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
         // ✅ FIX 2: Har post ke total likes count karke lana
         _count: {
@@ -222,8 +246,21 @@ export async function getPublishedPosts(
     }),
   ]);
 
+  // Convert Date objects to ISO strings for PostType compatibility
+  const transformedPosts = posts.map((post) => ({
+    ...post,
+    createdAt:
+      post.createdAt instanceof Date
+        ? post.createdAt.toISOString()
+        : String(post.createdAt),
+    updatedAt:
+      post.updatedAt instanceof Date
+        ? post.updatedAt.toISOString()
+        : String(post.updatedAt),
+  }));
+
   return {
-    posts,
+    posts: transformedPosts,
     totalPages: Math.ceil(total / limit) || 1,
   };
 }

@@ -68,6 +68,7 @@ export default async function Posts({
       isAdmin,
     );
 
+    //@ts-ignore
     posts = data.posts;
     totalPages = data.totalPages || 1;
   } catch (error) {
