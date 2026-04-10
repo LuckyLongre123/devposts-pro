@@ -5,7 +5,6 @@ import { headers } from "next/headers";
 import prisma from "../../../../../prisma/lib/prisma";
 
 export const maxDuration = 60;
-// export const runtime = "edge";
 
 const ai = new GoogleGenAI({});
 
