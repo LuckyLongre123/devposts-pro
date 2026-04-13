@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,9 @@ export default function SignupPage() {
     mode: "onChange",
   });
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "";
+  const redirectParam = redirect ? `?redirect=${encodeURIComponent(redirect)}` : "";
 
   async function onSubmit(data: SignUpType) {
     const toastId = toast.loading("Creating your account...");
@@ -41,7 +44,8 @@ export default function SignupPage() {
       }
 
       toast.success("Account created! Please sign in. 🎉", { id: toastId });
-      router.push("/signin");
+      // Carry redirect forward so after sign-in user lands back where they were
+      router.push(`/signin${redirectParam}`);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong ❌", { id: toastId });
     }
@@ -146,7 +150,7 @@ export default function SignupPage() {
         <p className="text-center text-sm text-foreground/60">
           Already have an account?{" "}
           <Link
-            href="/signin"
+            href={`/signin${redirectParam}`}
             className="font-bold text-blue-500 hover:underline"
           >
             Log in

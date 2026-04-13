@@ -21,13 +21,25 @@ export async function PUT(
       );
     }
 
-    // Optional auth check
     const userId = req.headers.get("x-user-id");
-    if (existingPost.authorId !== userId) {
+
+    if (!userId) {
       return Response.json(
-        { success: false, message: "Unauthorized" },
-        { status: 403 },
+        { success: false, message: "Authentication required" },
+        { status: 401 },
       );
+    }
+
+    if (existingPost.authorId !== userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (user?.role !== "admin") {
+        return Response.json(
+          { success: false, message: "Unauthorized" },
+          { status: 403 },
+        );
+      }
     }
 
     const updatedPost = await prisma.post.update({

@@ -38,8 +38,11 @@ export function useDraftStorage(postId?: string, enabled: boolean = true) {
       if (!enabled || typeof window === "undefined") return;
 
       try {
+        // Strip thumbnailUrl to avoid localStorage quota issues (Base64 is huge)
+        const { thumbnailUrl, ...dataWithoutThumbnail } = data;
+        
         const draftWithTimestamp = {
-          ...data,
+          ...dataWithoutThumbnail,
           lastSavedAt: new Date().toISOString(),
         };
         localStorage.setItem(draftKey, JSON.stringify(draftWithTimestamp));

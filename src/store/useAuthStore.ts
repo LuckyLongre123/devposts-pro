@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
       set({ user: null, isAuthenticated: false, isLoading: false });
 
-      window.location.href = "/signin";
+      window.location.href = `/signin?redirect=${encodeURIComponent(window.location.pathname)}`;
     } catch (error) {
       console.error("Logout Error:", error);
     } finally {

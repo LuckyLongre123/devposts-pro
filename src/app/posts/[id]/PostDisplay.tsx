@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,11 +26,13 @@ import {
   EyeIcon,
   ShieldCheckIcon,
   Heart,
+  Upload,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import MarkdownRenderer from "../../../../components/MarkdownRenderer";
 import ShareButton from "../../../../components/ShareButton";
 import ThumbnailUpload from "../../../../components/ThumbnailUpload";
+import { uploadThumbnail } from "@/lib/cloudinary";
 import {
   DeleteOverlay,
   getCharMeta,
@@ -74,6 +77,8 @@ export default function PostDisplay({
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [hasLiked, setHasLiked] = useState(initialHasLiked);
   const [isLiking, setIsLiking] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     console.log("Initial Post Data from Server:", initialPost);
@@ -103,6 +108,9 @@ export default function PostDisplay({
 
   const user = useAuthStore((st) => st.user);
   const isOwner = user?.id === initialPost?.author?.id;
+  // @ts-ignore
+  const isAdmin = user?.role === "admin" ?? false;
+  const canEdit = isOwner || isAdmin;
 
   const isAnyBusy =
     isRequesting.current ||
@@ -207,14 +215,62 @@ export default function PostDisplay({
         return;
       }
       isRequesting.current = true;
+
       try {
+        // Determine the final thumbnail URL:
+        // undefined: No change, keep existing
+        // "": Intentional removal, set to null
+        // "data:...": New local selection, needs upload
+        // "http...": Existing URL from Cloudinary (restored from draft or similar)
+        let finalThumbnailUrl: string | null;
+
+        if (editThumbnailUrl === "") {
+          finalThumbnailUrl = null;
+        } else if (editThumbnailUrl !== undefined) {
+          finalThumbnailUrl = editThumbnailUrl;
+        } else {
+          finalThumbnailUrl = post.thumbnailUrl || null;
+        }
+
+        // If thumbnail is a Data URL (deferred upload mode), upload to Cloudinary first
+        if (finalThumbnailUrl && finalThumbnailUrl.startsWith("data:")) {
+          try {
+            // Convert Data URL to Blob (optimized using Uint8Array to avoid binary corruption)
+            const parts = finalThumbnailUrl.split(";base64,");
+            const contentType = parts[0].split(":")[1].split(";")[0];
+            const base64Data = parts[1];
+            
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            const blob = new Blob([bytes], { type: contentType });
+            const extension = contentType.split("/")[1] || "jpg";
+            const file = new File([blob], `thumbnail.${extension}`, {
+              type: contentType,
+            });
+
+            // Upload to Cloudinary
+            const cloudinaryUrl = await uploadThumbnail(file);
+            finalThumbnailUrl = cloudinaryUrl;
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "Failed to upload thumbnail";
+            toast.error(errorMessage);
+            isRequesting.current = false;
+            return;
+          }
+        }
+
         const requestData = {
           ...data,
-          thumbnailUrl:
-            editThumbnailUrl !== undefined
-              ? editThumbnailUrl
-              : post.thumbnailUrl,
+          thumbnailUrl: finalThumbnailUrl,
         };
+
         const response = await fetch(`/api/posts/${post.id}`, {
           method: "PUT",
           body: JSON.stringify(requestData),
@@ -287,24 +343,28 @@ export default function PostDisplay({
   return (
     <div className="min-h-screen bg-background">
       {isDeleting && <DeleteOverlay status={deleteStatus} />}
+      {isNavigating && <DeleteOverlay status="redirecting" />}
 
       <div className="sticky top-0 z-20 border-b border-foreground/5 bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-4xl px-3 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
           <button
             onClick={() => {
-              if (isDeleting) {
-                toast.error("Please wait, post is being deleted");
+              if (isDeleting || isNavigating) {
+                toast.error("Please wait...");
                 return;
               }
-              router.push("/posts");
+              setIsNavigating(true);
+              startTransition(() => {
+                router.push("/posts");
+              });
             }}
-            className={`flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground transition-colors shrink-0 ${isDeleting ? "pointer-events-none opacity-30" : ""}`}
+            className={`flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground transition-colors shrink-0 ${isDeleting || isNavigating ? "pointer-events-none opacity-30" : ""}`}
           >
             <ArrowLeftIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Go Back</span>
           </button>
 
-          {isOwner && (
+          {canEdit && (
             <div className="flex items-center gap-1.5 sm:gap-2">
               {!isEditing && (
                 <>
@@ -382,13 +442,18 @@ export default function PostDisplay({
               </h1>
 
               <div className="flex items-start sm:items-center gap-3 pt-1">
-                <div className="h-8 w-8 rounded-full bg-blue-500/15 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
-                  {initialPost?.author?.name?.charAt(0).toUpperCase() || "D"}
-                </div>
+                <Link href={`/${initialPost?.author?.id}`}>
+                  <div className="h-8 w-8 rounded-full bg-blue-500/15 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0 hover:bg-blue-500/25 transition-colors cursor-pointer">
+                    {initialPost?.author?.name?.charAt(0).toUpperCase() || "D"}
+                  </div>
+                </Link>
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-semibold text-foreground/80 truncate">
+                  <Link
+                    href={`/${initialPost?.author?.id}`}
+                    className="text-sm font-semibold text-foreground/80 truncate hover:text-blue-400 transition-colors"
+                  >
                     {initialPost?.author?.name || "DevNotes User"}
-                  </span>
+                  </Link>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/35">
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="h-3 w-3 shrink-0" />
@@ -412,8 +477,72 @@ export default function PostDisplay({
               </div>
             </div>
 
+            {/* Thumbnail Display Section */}
+            {post.thumbnailUrl ? (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
+                  Thumbnail
+                </label>
+                <div
+                  className={`relative w-full ${THUMBNAIL_ASPECT_CLASS} rounded-xl overflow-hidden bg-foreground/5 border border-foreground/10 group cursor-pointer`}
+                >
+                  <Image
+                    src={post.thumbnailUrl}
+                    alt={post.title}
+                    fill
+                    priority
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 896px"
+                    className="object-cover transition-opacity group-hover:opacity-80"
+                  />
+
+                  {/* Edit Icon in Top-Right */}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      disabled={isAnyBusy}
+                      className="absolute top-3 right-3 p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Edit thumbnail"
+                    >
+                      <PenIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
+                  Thumbnail
+                </label>
+                <div className="rounded-xl border-2 border-dashed border-foreground/10 bg-foreground/[0.02] p-6 sm:p-8 text-center">
+                  <div className="flex flex-col items-center gap-2 pointer-events-none">
+                    <Upload className="h-8 w-8 text-blue-500/40" />
+                    <p className="text-sm text-foreground/40 font-medium">
+                      No thumbnail yet
+                    </p>
+                    <p className="text-xs text-foreground/30">
+                      {canEdit
+                        ? "Click Edit to add one"
+                        : "Author hasn't added a thumbnail"}
+                    </p>
+                  </div>
+
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      disabled={isAnyBusy}
+                      className="mt-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <PenIcon className="h-3.5 w-3.5" /> Add Thumbnail
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div
-              className={`relative w-full ${THUMBNAIL_ASPECT_CLASS} rounded-xl overflow-hidden bg-foreground/5 border border-foreground/10`}
+              className={`relative w-full ${THUMBNAIL_ASPECT_CLASS} rounded-xl overflow-hidden bg-foreground/5 border border-foreground/10 hidden`}
             >
               <Image
                 src={post.thumbnailUrl || DEFAULT_THUMBNAIL}
@@ -471,7 +600,7 @@ export default function PostDisplay({
 
             <div className="h-px w-full bg-foreground/5" />
 
-            <div className="prose prose-invert max-w-none">
+            <div className="prose dark:prose-invert max-w-none">
               <MarkdownRenderer content={post.body} />
             </div>
 
@@ -481,7 +610,7 @@ export default function PostDisplay({
               </span>
 
               <div className="flex items-center gap-2">
-                {isOwner && (
+                {canEdit && (
                   <button
                     onClick={() => setIsEditing(true)}
                     disabled={isAnyBusy}
@@ -609,6 +738,9 @@ export default function PostDisplay({
               <ThumbnailUpload
                 onImageUploaded={setEditThumbnailUrl}
                 disabled={isSubmitting}
+                existingThumbnailUrl={
+                  editThumbnailUrl || post.thumbnailUrl || undefined
+                }
               />
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-5 sm:pt-6 border-t border-foreground/5">

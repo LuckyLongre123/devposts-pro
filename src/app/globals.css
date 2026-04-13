@@ -1,8 +1,33 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* GLOBAL SCROLLBAR FIX */
+/* ============================================================
+   DARK MODE — Tailwind v4 class-based dark mode
+   Enables the `dark:` utility prefix when `.dark` is on <html>
+   ============================================================ */
+@variant dark (&:where(.dark, .dark *));
 
+/* ============================================================
+   DESIGN TOKENS — CSS Variables (defaults; overridden at runtime
+   via inline style.setProperty on <html> by ThemeToggle)
+   ============================================================ */
+:root {
+  /* Light theme — premium sky-blue palette */
+  --background: #f4f7ff;
+  /* Deeper navy so /60, /40 opacity variants stay clearly readable */
+  --foreground: #06112a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ============================================================
+   GLOBAL SCROLLBAR
+   ============================================================ */
 html {
   scroll-behavior: smooth;
 }
@@ -35,36 +60,26 @@ html {
   scrollbar-color: rgba(59, 130, 246, 0.5) transparent;
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ============================================================
+   PROGRESS SPINNER
+   ============================================================ */
 @media (max-width: 1350px) {
   #nprogress .spinner {
     display: none !important;
   }
 }
 
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* Smooth transition when theme changes */
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
 button {
   cursor: pointer;
 }

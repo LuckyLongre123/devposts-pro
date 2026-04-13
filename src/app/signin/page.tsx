@@ -108,7 +108,7 @@ export default function LoginPage() {
         <p className="text-center text-sm text-foreground/60">
           Don't have an account?{" "}
           <Link
-            href="/signup"
+            href={`/signup${redirect !== "/profile" ? `?redirect=${encodeURIComponent(redirect)}` : ""}`}
             className="font-bold text-blue-500 hover:underline"
           >
             Sign up free

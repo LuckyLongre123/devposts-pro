@@ -104,7 +104,7 @@ export default async function Posts({
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
       {/* Header & Search Bar Section */}
-      <div className="mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+      <div className="mb-12 flex flex-col gap-6">
         <div className="border-l-4 border-blue-500 pl-4">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">
             All Global Posts
@@ -113,6 +113,8 @@ export default async function Posts({
             Discover thoughts, stories, and ideas.
           </p>
         </div>
+
+        {/* Search Bar with Built-in Sort */}
         <Search userRole={user?.role} placeholder="Search articles..." />
       </div>
 

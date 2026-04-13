@@ -92,17 +92,13 @@ export async function POST(request: NextRequest) {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: "hall-project/thumbnails",
-          resource_type: "auto",
-          quality: "auto",
-          fetch_format: "auto",
+          resource_type: "image",
           flags: "progressive",
           eager: [
             {
               width: 1200,
               height: 630,
               crop: "limit",
-              quality: "auto",
-              fetch_format: "auto",
             },
           ],
           eager_async: true,
@@ -122,13 +118,8 @@ export async function POST(request: NextRequest) {
 
     const result = uploadResult as any;
 
-    // Return optimized URL with transformations (no cropping, just fit)
-    const secureUrl = result.secure_url.includes("/w_")
-      ? result.secure_url
-      : result.secure_url.replace(
-          "/upload/",
-          "/upload/w_1200,h_630,c_limit,q_auto,f_auto/",
-        );
+    // Return the clean secure URL - transformations are handled by getOptimizedThumbnailUrl helper
+    const secureUrl = result.secure_url;
 
     return NextResponse.json(
       {

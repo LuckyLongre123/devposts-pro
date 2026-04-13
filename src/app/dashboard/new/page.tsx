@@ -35,6 +35,7 @@ import {
 import { useAuthStore } from "@/store/useAuthStore";
 import ThumbnailUpload from "../../../../components/ThumbnailUpload";
 import { useDraftStorage } from "@/hooks/useDraftStorage";
+import { uploadThumbnail } from "@/lib/cloudinary";
 
 const API_ERROR_MESSAGES: Record<string, string> = {
   QUOTA_EXCEEDED: "AI quota exceeded. Please try again later.",
@@ -295,32 +296,73 @@ ${body}`;
   // ── Create ──
   const onSubmit = async (data: PostDataType) => {
     if (isAnyBusy) return;
+
+    let finalThumbnailUrl = thumbnailUrl;
+
+    // If thumbnail is a Data URL (deferred upload mode), upload to Cloudinary first
+    if (thumbnailUrl && thumbnailUrl.startsWith("data:")) {
+      try {
+        setIsThumbnailUploading(true);
+
+        // Convert Data URL to Blob (optimized using Uint8Array to avoid binary corruption)
+        const parts = thumbnailUrl.split(";base64,");
+        const contentType = parts[0].split(":")[1].split(";")[0];
+        const base64Data = parts[1];
+        
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: contentType });
+        const extension = contentType.split("/")[1] || "jpg";
+        const file = new File([blob], `thumbnail.${extension}`, {
+          type: contentType,
+        });
+
+        // Upload to Cloudinary
+        const cloudinaryUrl = await uploadThumbnail(file);
+        finalThumbnailUrl = cloudinaryUrl;
+        setThumbnailUrl(cloudinaryUrl);
+        setIsThumbnailUploading(false);
+      } catch (error) {
+        setIsThumbnailUploading(false);
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to upload thumbnail";
+        toast.error(errorMessage);
+        return;
+      }
+    }
+
     const postData = {
       ...data,
-      thumbnailUrl: thumbnailUrl || null, // Include optional thumbnail
+      thumbnailUrl: finalThumbnailUrl || null,
     };
 
-    const postAction = fetch("/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(postData),
-    }).then(async (r) => {
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err?.error || "Failed to Create post.");
-      }
-      return r.json();
-    });
+    try {
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(postData),
+      });
 
-    toast.promise(postAction, {
-      loading: "Creating your post…",
-      success: (res) => {
-        clearDraft(); // Clear draft after successful creation
-        router.push(`/posts/${res.data.id}`);
-        return "Post Created!";
-      },
-      error: (err: Error) => err.message || "Failed to Create post.",
-    });
+      if (!response.ok) {
+        const err = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        throw new Error(err?.error || "Failed to create post");
+      }
+
+      const res = await response.json();
+      clearDraft();
+      toast.success("Post Created!");
+      router.push(`/posts/${res.data.id}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create post";
+      toast.error(errorMessage);
+    }
   };
 
   const { ref: bodyRegisterRef, ...bodyRest } = register("body");

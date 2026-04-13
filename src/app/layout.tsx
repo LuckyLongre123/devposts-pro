@@ -13,6 +13,27 @@ import {
   getJsonLdScript,
 } from "@/lib/structured-data";
 
+// Inline script that runs synchronously before React hydration to prevent FOUC.
+// Reads localStorage and applies the `.dark` class to <html> immediately.
+const themeScript = `
+  (function() {
+    try {
+      var stored = localStorage.getItem('devposts-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
+      var root = document.documentElement;
+      if (isDark) {
+        root.classList.add('dark');
+        root.style.setProperty('--background', '#0a0a0a');
+        root.style.setProperty('--foreground', '#ededed');
+      } else {
+        root.style.setProperty('--background', '#f4f7ff');
+        root.style.setProperty('--foreground', '#06112a');
+      }
+    } catch (e) {}
+  })();
+`;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -56,8 +77,14 @@ export default async function RootLayout({
       lang="en"
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
+        {/* FOUC Prevention: runs before React hydrates, sets dark class from localStorage */}
+        <script
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+          suppressHydrationWarning
+        />
         {/* Organization Schema */}
         <script
           type="application/ld+json"

@@ -24,10 +24,14 @@ export default function ThumbnailUpload({
   onImageUploaded,
   disabled = false,
   onUploadStateChange,
+  existingThumbnailUrl,
+  deferCloudinaryUpload = true,
 }: {
   onImageUploaded: (url: string) => void;
   disabled?: boolean;
   onUploadStateChange?: (isUploading: boolean) => void;
+  existingThumbnailUrl?: string | null;
+  deferCloudinaryUpload?: boolean;
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -49,53 +53,64 @@ export default function ThumbnailUpload({
       // Show preview immediately
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreviewUrl(e.target?.result as string);
+        const dataUrl = e.target?.result as string;
+        setPreviewUrl(dataUrl);
+
+        // If deferred upload mode, just return the Data URL immediately
+        if (deferCloudinaryUpload) {
+          onImageUploaded(dataUrl);
+          return;
+        }
+
+        // Otherwise, proceed with immediate Cloudinary upload
+        uploadToCloudinaryAsync(file);
       };
       reader.readAsDataURL(file);
+    },
+    [deferCloudinaryUpload, onImageUploaded, onUploadStateChange],
+  );
 
-      // Upload to Cloudinary
-      setIsUploading(true);
-      onUploadStateChange?.(true);
-      setUploadError(null);
-      setUploadProgress(0);
+  const uploadToCloudinaryAsync = async (file: File) => {
+    setIsUploading(true);
+    onUploadStateChange?.(true);
+    setUploadError(null);
+    setUploadProgress(0);
 
-      try {
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          setUploadProgress((prev) => {
-            if (prev >= 90) {
-              clearInterval(progressInterval);
-              return prev;
-            }
-            return prev + Math.random() * 30;
-          });
-        }, 200);
+    try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 30;
+        });
+      }, 200);
 
-        const cloudinaryUrl = await uploadThumbnail(file);
+      const cloudinaryUrl = await uploadThumbnail(file);
 
-        clearInterval(progressInterval);
-        setUploadProgress(100);
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
-        // Wait a bit before clearing progress for visual feedback
-        setTimeout(() => {
-          setIsUploading(false);
-          onUploadStateChange?.(false);
-          setPreviewUrl(cloudinaryUrl); // Update preview with actual uploaded URL
-          onImageUploaded(cloudinaryUrl);
-          toast.success("Thumbnail uploaded successfully!");
-        }, 500);
-      } catch (error) {
+      // Wait a bit before clearing progress for visual feedback
+      setTimeout(() => {
         setIsUploading(false);
         onUploadStateChange?.(false);
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to upload thumbnail";
-        setUploadError(errorMessage);
-        setUploadProgress(0);
-        toast.error(errorMessage);
-      }
-    },
-    [onImageUploaded],
-  );
+        setPreviewUrl(cloudinaryUrl); // Update preview with actual uploaded URL
+        onImageUploaded(cloudinaryUrl);
+        toast.success("Thumbnail uploaded successfully!");
+      }, 500);
+    } catch (error) {
+      setIsUploading(false);
+      onUploadStateChange?.(false);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to upload thumbnail";
+      setUploadError(errorMessage);
+      setUploadProgress(0);
+      toast.error(errorMessage);
+    }
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -136,7 +151,9 @@ export default function ThumbnailUpload({
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, []);
+    // Notify parent that thumbnail is removed
+    onImageUploaded("");
+  }, [onImageUploaded]);
 
   return (
     <section className="space-y-3">
@@ -151,18 +168,17 @@ export default function ThumbnailUpload({
       </div>
 
       {/* Upload Area or Preview */}
-      {!previewUrl && !isUploading ? (
+      {!previewUrl && !isUploading && !existingThumbnailUrl ? (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative rounded-xl border-2 border-dashed transition-all p-6 sm:p-8 lg:p-10 text-center cursor-pointer min-h-[200px] sm:min-h-[240px] flex flex-col items-center justify-center ${
-            disabled
+          className={`relative rounded-xl border-2 border-dashed transition-all p-6 sm:p-8 lg:p-10 text-center cursor-pointer min-h-[200px] sm:min-h-[240px] flex flex-col items-center justify-center ${disabled
               ? "border-foreground/10 bg-foreground/[0.02] cursor-not-allowed opacity-50"
               : dragOverRef.current
                 ? "border-blue-500/50 bg-blue-500/5"
                 : "border-foreground/10 hover:border-blue-500/40 hover:bg-foreground/[0.03]"
-          }`}
+            }`}
         >
           <input
             ref={fileInputRef}
@@ -205,7 +221,7 @@ export default function ThumbnailUpload({
           </div>
         </div>
       ) : previewUrl ? (
-        /* Preview Container */
+        /* New Preview Container */
         <div className="space-y-3">
           <div
             className={`relative rounded-xl overflow-hidden bg-foreground/[0.02] border border-foreground/10 ${THUMBNAIL_ASPECT_CLASS}`}
@@ -226,7 +242,7 @@ export default function ThumbnailUpload({
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-foreground/50">
-              Thumbnail preview — Image will be optimized for sharing
+              New thumbnail preview — Image will be optimized for sharing
             </p>
             <button
               type="button"
@@ -236,6 +252,58 @@ export default function ThumbnailUpload({
             >
               <X className="h-3 w-3" />
               <span className="hidden sm:inline">Remove</span>
+            </button>
+          </div>
+        </div>
+      ) : existingThumbnailUrl && !previewUrl ? (
+        /* Existing Thumbnail Container */
+        <div className="space-y-3">
+          <div
+            className={`relative rounded-xl overflow-hidden bg-foreground/[0.02] border border-foreground/10 ${THUMBNAIL_ASPECT_CLASS}`}
+          >
+            <Image
+              src={existingThumbnailUrl}
+              alt="Current thumbnail"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
+              className="object-contain"
+            />
+
+            {/* Upload/Edit overlay hint */}
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center opacity-0 hover:opacity-100">
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="h-6 w-6 text-white" />
+                <span className="text-xs font-semibold text-white">
+                  Click to replace
+                </span>
+              </div>
+            </div>
+
+            {/* Input for clickable replacement */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(
+                ",",
+              )}
+              onChange={handleInputChange}
+              disabled={disabled}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-foreground/50">
+              Current thumbnail — Drag & drop or click to replace
+            </p>
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={disabled}
+              className="flex items-center gap-1 px-3 py-2 sm:px-3 sm:py-2 text-xs font-semibold text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] min-w-[44px] justify-center"
+            >
+              <X className="h-3 w-3" />
+              <span className="hidden sm:inline">Clear</span>
             </button>
           </div>
         </div>
@@ -250,7 +318,7 @@ export default function ThumbnailUpload({
       )}
 
       {/* Info Box */}
-      {!previewUrl && (
+      {!previewUrl && !existingThumbnailUrl && (
         <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-3 sm:p-4">
           <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed space-y-1">
             <strong>📌 Thumbnail Tips:</strong>

@@ -128,13 +128,19 @@ export async function uploadThumbnail(
  * @returns Optimized URL with transformations
  */
 export function getOptimizedThumbnailUrl(url: string): string {
+  if (!url) return "";
+  
+  // Aggressive fix: If Cloudinary returned a 'raw' URL for an image, force it to 'image'
+  // so transformations and Next.js optimization work correctly.
+  let normalizedUrl = url.replace("/raw/upload/", "/image/upload/");
+
   // If URL already has transformations, return as-is
-  if (url.includes("/w_") || url.includes("/c_")) {
-    return url;
+  if (normalizedUrl.includes("/w_") || normalizedUrl.includes("/c_")) {
+    return normalizedUrl;
   }
 
   // Add transformations for optimization
-  return url.replace("/upload/", "/upload/w_1200,h_630,c_fill,q_auto,f_auto/");
+  return normalizedUrl.replace("/image/upload/", "/image/upload/w_1200,h_630,c_fill,q_auto,f_auto/");
 }
 
 /**
@@ -143,13 +149,22 @@ export function getOptimizedThumbnailUrl(url: string): string {
  * @returns Object with responsive URLs
  */
 export function getResponsiveThumbnailUrls(url: string) {
-  const baseUrl = url.split("/upload/")[0] + "/upload/";
-  const remainder = url.split("/upload/")[1];
+  if (!url) return { mobile: "", tablet: "", desktop: "", original: "" };
+  
+  // Aggressive fix for raw resources
+  const normalizedUrl = url.replace("/raw/upload/", "/image/upload/");
+
+  if (!normalizedUrl.includes("/image/upload/")) {
+    return { mobile: normalizedUrl, tablet: normalizedUrl, desktop: normalizedUrl, original: normalizedUrl };
+  }
+
+  const baseUrl = normalizedUrl.split("/image/upload/")[0] + "/image/upload/";
+  const remainder = normalizedUrl.split("/image/upload/")[1];
 
   return {
     mobile: `${baseUrl}w_480,h_270,c_fill,q_auto,f_auto/${remainder}`,
     tablet: `${baseUrl}w_768,h_432,c_fill,q_auto,f_auto/${remainder}`,
     desktop: `${baseUrl}w_1200,h_630,c_fill,q_auto,f_auto/${remainder}`,
-    original: url,
+    original: normalizedUrl,
   };
 }

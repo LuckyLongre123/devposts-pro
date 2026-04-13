@@ -4,11 +4,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import hljs from "highlight.js";
-import "highlight.js/styles/github-dark.css";
+import "highlight.js/styles/github.css";
 
 export default function MarkdownRenderer({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert max-w-none">
+    <div className="prose dark:prose-invert max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}

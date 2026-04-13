@@ -43,4 +43,5 @@ export type UserType = {
   name: string | null;
   email: string | null;
   aiTokens: number | null;
+  role?: "user" | "admin" | null;
 };

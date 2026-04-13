@@ -18,13 +18,14 @@ enum Role {
 
 // 1. User Model
 model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
+  id       String    @id @default(cuid())
+  email    String    @unique
   password String
   name     String?
-  role     Role    @default(user)
+  role     Role      @default(user)
   posts    Post[]
-  likes Like[]
+  likes    Like[]
+  messages Message[]
 
   aiTokens   Int       @default(5)
   lastAiCall DateTime? @default(now())
@@ -61,11 +62,14 @@ model Message {
   name      String
   email     String
   message   String
+  userId    String? // Optional link to registered user
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  isRead    Boolean  @default(false) // Track read status for admin
   createdAt DateTime @default(now())
 
   @@index([email])
+  @@index([userId])
 }
-
 
 model Like {
   id        String   @id @default(cuid())
@@ -73,9 +77,9 @@ model Like {
   postId    String
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   // Ek user ek post ko sirf ek hi baar like kar sakta hai
-  @@unique([userId, postId]) 
+  @@unique([userId, postId])
 }

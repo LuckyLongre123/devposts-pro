@@ -1,6 +1,7 @@
 import { validate } from "@/utils/zod/validate";
 import prisma from "../../../../../prisma/lib/prisma";
 import { postSchema } from "@/utils/zod/schemas";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function PUT(
   req: Request,
@@ -8,6 +9,15 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return Response.json(
+        { success: false, message: "Unauthorized: Please sign in" },
+        { status: 401 },
+      );
+    }
+
     const reqBody = await req.json();
 
     const validatedData = validate(postSchema, reqBody);
@@ -30,6 +40,17 @@ export async function PUT(
       return Response.json(
         { success: false, message: "Post not found" },
         { status: 404 },
+      );
+    }
+
+    // ✅ Authorization check: Only author or admin can edit
+    const isAuthor = existingPost.authorId === user.id;
+    const isAdmin = user.role === "admin";
+
+    if (!isAuthor && !isAdmin) {
+      return Response.json(
+        { success: false, message: "Unauthorized: You cannot edit this post" },
+        { status: 403 },
       );
     }
 
@@ -68,6 +89,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return Response.json(
+        { success: false, message: "Unauthorized: Please sign in" },
+        { status: 401 },
+      );
+    }
 
     if (!id) {
       return Response.json(
@@ -87,11 +116,16 @@ export async function DELETE(
       );
     }
 
-    // 🔐 OPTIONAL (recommended): auth check
-    const userId = req.headers.get("x-user-id");
-    if (existingPost.authorId !== userId) {
+    // ✅ Authorization check: Only author or admin can delete
+    const isAuthor = existingPost.authorId === user.id;
+    const isAdmin = user.role === "admin";
+
+    if (!isAuthor && !isAdmin) {
       return Response.json(
-        { success: false, message: "Unauthorized" },
+        {
+          success: false,
+          message: "Unauthorized: You cannot delete this post",
+        },
         { status: 403 },
       );
     }

@@ -1153,6 +1153,45 @@ const secondaryUsersData = [
   { email: "yuki.tanaka@infrasync.io", name: "Yuki Tanaka" },
 ];
 
+// ─── Sample Messages (Guest + Registered Users) ────────────────────────────────
+const guestMessagesData = [
+  {
+    name: "John Developer",
+    email: "john.dev@external.com",
+    message:
+      "Great blog posts! The React Server Components guide was really helpful.",
+  },
+  {
+    name: "Sarah Tech",
+    email: "sarah.tech@startup.dev",
+    message:
+      "Please write more articles about performance optimization in Next.js",
+  },
+  {
+    name: "Mike Code",
+    email: "mike.code@freelance.io",
+    message:
+      "I implemented the accessibility tips from your ARIA guide. Thanks!",
+  },
+  {
+    name: "Emma Stack",
+    email: "emma.stack@agency.co",
+    message:
+      "Could you elaborate on Docker best practices for production deployments?",
+  },
+  {
+    name: "Alex Build",
+    email: "alex.build@company.net",
+    message: "Love the TypeScript generics tutorial. Very comprehensive!",
+  },
+  {
+    name: "Lisa Dev",
+    email: "lisa.dev@startup.com",
+    message:
+      "The PostgreSQL indexing guide helped optimize our slow queries significantly.",
+  },
+];
+
 // ─── Fisher-Yates Shuffle ─────────────────────────────────────────────────────
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -1169,11 +1208,20 @@ async function main() {
   const hashedPassword =
     "$2b$10$F9QAfgM/Abshr5BxPTfEw.MQEmqIGSGYVl45rpSkRyUfDs3pXefKW";
 
+  // ─── Clean up existing data ────────────────────────────────────────────────
+  console.log("🗑️  Cleaning up existing data...\n");
+
+  // Delete in correct order (respecting foreign key constraints)
+  await prisma.like.deleteMany({});
+  await prisma.message.deleteMany({});
+  await prisma.post.deleteMany({});
+  await prisma.user.deleteMany({});
+
+  console.log("✅ Database cleaned.\n");
+
   // ─── Main / Special User ──────────────────────────────────────────────────
-  const targetUser = await prisma.user.upsert({
-    where: { id: "cmnijrif000003ov7vjrcc8s7" },
-    update: { password: hashedPassword },
-    create: {
+  const targetUser = await prisma.user.create({
+    data: {
       id: "cmnijrif000003ov7vjrcc8s7",
       email: "officialluckylongre@gmail.com",
       password: hashedPassword,
@@ -1185,10 +1233,8 @@ async function main() {
   // ─── Secondary Users ──────────────────────────────────────────────────────
   const secondaryUsers = [];
   for (const u of secondaryUsersData) {
-    const created = await prisma.user.upsert({
-      where: { email: u.email },
-      update: { password: hashedPassword },
-      create: { email: u.email, name: u.name, password: hashedPassword },
+    const created = await prisma.user.create({
+      data: { email: u.email, name: u.name, password: hashedPassword },
     });
     secondaryUsers.push(created);
   }
@@ -1197,13 +1243,8 @@ async function main() {
   console.log("\n✅ All users ready:");
   allUsers.forEach((u) => console.log(`   📧 ${u.email}  |  👤 ${u.name}`));
 
-  // ─── Clean old posts ──────────────────────────────────────────────────────
-  await prisma.post.deleteMany({
-    where: { authorId: { in: allUsers.map((u) => u.id) } },
-  });
-  console.log("\n🗑️  Old posts cleared.\n");
-
   // ─── Generate 390 Unique Posts & Shuffle ──────────────────────────────────
+  console.log("📝 Generating posts...\n");
   const TOTAL_POSTS_NEEDED = 390;
   const fullPostPool = generateUniqueTemplates(
     basePostTemplates,
@@ -1241,9 +1282,58 @@ async function main() {
     );
   }
 
+  // ─── Create Messages (Guest + From Registered Users) ──────────────────────────
+  console.log("\n📬 Creating messages...");
+
+  const messagesData = [];
+
+  // 1. Guest messages
+  for (const msg of guestMessagesData) {
+    messagesData.push({
+      name: msg.name,
+      email: msg.email,
+      message: msg.message,
+      userId: null, // Guest user - no link to registered user
+      isRead: Math.random() > 0.5, // Random read status
+    });
+  }
+
+  // 2. Messages from registered users
+  for (let i = 0; i < 8; i++) {
+    const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
+    const feedbackMessages = [
+      "This is a great learning resource. Thanks for sharing!",
+      "I found this very helpful for my project.",
+      "Could you write more about this topic?",
+      "Excellent explanation! Keep up the good work.",
+      "I implemented this in my application with great results.",
+      "Very detailed and well-structured content.",
+      "This helped me solve a critical performance issue.",
+      "Amazing technical insights. Thank you!",
+    ];
+    const randomMessage =
+      feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)];
+
+    messagesData.push({
+      name: randomUser.name || "Unknown",
+      email: randomUser.email,
+      message: randomMessage,
+      userId: randomUser.id, // Link to registered user
+      isRead: Math.random() > 0.6, // ~40% unread messages
+    });
+  }
+
+  // Create new messages
+  await prisma.message.createMany({ data: messagesData });
+
+  console.log(`   💬 ${guestMessagesData.length} guest messages created`);
+  console.log(`   💬 8 messages from registered users created`);
+  console.log(`   ✉️  Total messages: ${messagesData.length}`);
+
   console.log(`\n🎉 Seeding complete!`);
   console.log(`   👥 Users    : ${allUsers.length}`);
   console.log(`   📄 Posts    : ${totalPosts}  (all unique, zero duplicates)`);
+  console.log(`   💬 Messages : ${messagesData.length}`);
   console.log(`   🔑 Password : Lucky@123`);
 }
 

@@ -4,6 +4,8 @@ import {
   generateMetadata as generateSeoMetadata,
   generateViewport,
 } from "@/lib/seo-config";
+import { getAuthenticatedUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = generateSeoMetadata(
   PAGE_METADATA.signin.title,
@@ -16,10 +18,16 @@ export const metadata: Metadata = generateSeoMetadata(
 
 export const viewport: Viewport = generateViewport();
 
-export default function SignInLayout({
+export default async function SignInLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Redirect already authenticated users to profile
+  const user = await getAuthenticatedUser();
+  if (user) {
+    redirect("/profile");
+  }
+
   return children;
 }

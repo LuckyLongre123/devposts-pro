@@ -45,7 +45,7 @@ export default function ProfilePage() {
   const handleLogout = () => {
     logout();
     toast.success("Logged out successfully");
-    router.push("/signin");
+    router.push(`/signin?redirect=${encodeURIComponent(window.location.pathname)}`);
   };
   
   const onSubmit = async (data: ProfileType) => {
