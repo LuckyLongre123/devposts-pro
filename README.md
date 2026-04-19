@@ -192,7 +192,7 @@ DevPostS Pro provides a **distraction-free, developer-focused writing platform**
 | **Auth Flow** | Sign up → sign in → redirect preservation → JWT cookies → protected routes |
 
 <p align="center">
-  <a href="https://youtu.be/YOUR_VIDEO_ID">
+  <a href="https://www.youtube.com/watch?v=tvKD_XygQwI">
     <img src="https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo on YouTube" />
   </a>
 </p>
